@@ -253,10 +253,21 @@ function catalogFieldHtml({ label, name, catalogKey, selectedId, required = true
   return inlineField(label, required, control, `id="field-${name}"`);
 }
 
-function openEmployeeForm(id) {
+async function openEmployeeForm(id) {
   const editing = id ? Store.getEmployee(id) : null;
   const hayAntecedentes = editing?.cuentaAntecedentes === 'Si';
   const inactivo = editing ? editing.estado === 'inactivo' : false;
+
+  let roles = [];
+  let currentRol = '';
+  try {
+    roles = await Store.getRoles();
+    if (editing?.usuario) {
+      const accounts = await Store.getAccounts();
+      const account = accounts.find(a => a.username?.toLowerCase() === editing.usuario.toLowerCase());
+      currentRol = account?.rol || '';
+    }
+  } catch (_) { /* si falla, se muestra el formulario igual sin el selector de rol */ }
 
   const modal = openModal({
     title: editing ? 'Editar empleado' : 'Nuevo empleado',
@@ -356,13 +367,23 @@ function openEmployeeForm(id) {
 
         <div class="subsection-title">${icon('user-check')} Usuario y contraseña</div>
         ${editing
-          ? `<p style="font-size:12px;color:var(--text-muted);margin:2px 0 10px;">${editing.usuario
-              ? `Cuenta de acceso: <strong>${escapeHtml(editing.usuario)}</strong>. La contraseña solo puede restablecerla Soporte.`
-              : 'Este colaborador no tiene cuenta de acceso creada.'}</p>`
+          ? (editing.usuario ? `
+              <p style="font-size:12px;color:var(--text-muted);margin:2px 0 10px;">Cuenta de acceso: <strong>${escapeHtml(editing.usuario)}</strong>. La contraseña solo puede restablecerla Soporte.</p>
+              ${inlineField('Rol', false, `
+                <select name="rol">
+                  ${roles.map(r => `<option value="${escapeHtml(r.nombre)}" ${r.nombre === currentRol ? 'selected' : ''}>${escapeHtml(r.nombre)} — ${escapeHtml(r.descripcion || '')}</option>`).join('')}
+                </select>
+              `)}
+            ` : `<p style="font-size:12px;color:var(--text-muted);margin:2px 0 10px;">Este colaborador no tiene cuenta de acceso creada.</p>`)
           : `
-            <p style="font-size:12px;color:var(--text-muted);margin:2px 0 10px;">Opcional: si completas ambos campos, se crea una cuenta real para que el colaborador pueda loguearse en los sistemas de Qubira. Una vez creada, solo Soporte podrá cambiar la contraseña.</p>
+            <p style="font-size:12px;color:var(--text-muted);margin:2px 0 10px;">Opcional: si completas usuario y contraseña, se crea una cuenta real para que el colaborador pueda loguearse en los sistemas de Qubira. Una vez creada, solo Soporte podrá cambiar la contraseña.</p>
             ${inlineField('Usuario', false, `<input type="text" name="usuario" autocomplete="off" placeholder="usuario.apellido">`)}
             ${inlineField('Contraseña', false, `<input type="password" name="contrasena" autocomplete="new-password" minlength="8" placeholder="Mínimo 8 caracteres">`)}
+            ${inlineField('Rol', false, `
+              <select name="rol">
+                ${roles.map(r => `<option value="${escapeHtml(r.nombre)}" ${r.nombre === 'VIEWER' ? 'selected' : ''}>${escapeHtml(r.nombre)} — ${escapeHtml(r.descripcion || '')}</option>`).join('')}
+              </select>
+            `)}
           `}
 
         <div class="subsection-title">${icon('user-check')} Contacto de referencia</div>
@@ -600,10 +621,14 @@ async function handleDelete(id) {
     `Vas a eliminar a <strong>${escapeHtml(fullName(emp))}</strong>. También se eliminarán sus contratos, documentos y su historial de cambios. Esta acción no se puede deshacer.`
   );
   if (!confirmed) return;
-  await Store.deleteEmployee(id);
-  toast('Empleado eliminado.', 'success');
-  renderTable();
-  document.dispatchEvent(new CustomEvent('data:changed'));
+  try {
+    await Store.deleteEmployee(id);
+    toast('Empleado eliminado.', 'success');
+    renderTable();
+    document.dispatchEvent(new CustomEvent('data:changed'));
+  } catch (err) {
+    toast(err.message || 'No se pudo eliminar el empleado.', 'error');
+  }
 }
 
 // ---------------------------------------------------------------------------

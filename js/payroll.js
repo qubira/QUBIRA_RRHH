@@ -113,17 +113,17 @@ function openPayrollForm(id) {
         <div class="field-row">
           <div class="field">
             <label>Salario base *</label>
-            <input type="number" name="salarioBase" min="0" step="1000" required value="${editing?.salarioBase ?? ''}">
+            <input type="number" name="salarioBase" min="0" step="any" required value="${editing?.salarioBase ?? ''}">
           </div>
           <div class="field">
             <label>Bonos</label>
-            <input type="number" name="bonos" min="0" step="1000" value="${editing?.bonos ?? 0}">
+            <input type="number" name="bonos" min="0" step="any" value="${editing?.bonos ?? 0}">
           </div>
         </div>
         <div class="field-row">
           <div class="field">
             <label>Descuentos</label>
-            <input type="number" name="descuentos" min="0" step="1000" value="${editing?.descuentos ?? 0}">
+            <input type="number" name="descuentos" min="0" step="any" value="${editing?.descuentos ?? 0}">
           </div>
           <div class="field">
             <label>Estado</label>

@@ -60,6 +60,7 @@ export const Store = {
   // solo lectura desde RRHH: se crean al dar de alta un empleado y la
   // contraseña solo la restablece el panel de Soporte.
   getAccounts: async () => (await qrFetch('/api/usuarios')).usuarios,
+  getRoles: async () => (await qrFetch('/api/rrhh/roles')).data,
 
   // Departments
   getDepartments: () => db.departments,

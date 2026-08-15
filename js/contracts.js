@@ -171,7 +171,7 @@ function openContractForm(id) {
         </div>
         <div class="field">
           <label>Salario (mensual, ARS) *</label>
-          <input type="number" name="salario" min="0" step="1000" required value="${editing?.salario ?? ''}">
+          <input type="number" name="salario" min="0" step="any" required value="${editing?.salario ?? ''}">
         </div>
         <div class="field">
           <label>Observaciones</label>
