@@ -326,11 +326,15 @@ function openEmployeeForm(id) {
         ${inlineField('Fecha de ingreso', true, `<input type="date" name="fechaIngreso" required value="${editing?.fechaIngreso || ''}">`)}
 
         <div class="subsection-title">${icon('user-check')} Usuario y contraseña</div>
-        <p style="font-size:12px;color:var(--text-muted);margin:2px 0 10px;">${editing?.usuario
-          ? 'Este colaborador ya tiene una cuenta de acceso. Deja la contraseña en blanco si no quieres cambiarla.'
-          : 'Opcional: si completas ambos campos, se crea una cuenta real para que el colaborador pueda loguearse en los sistemas de Qubira.'}</p>
-        ${inlineField('Usuario', false, `<input type="text" name="usuario" autocomplete="off" value="${escapeHtml(editing?.usuario || '')}" placeholder="usuario.apellido">`)}
-        ${inlineField(editing?.usuario ? 'Nueva contraseña' : 'Contraseña', false, `<input type="password" name="contrasena" autocomplete="new-password" minlength="8" placeholder="Mínimo 8 caracteres">`)}
+        ${editing
+          ? `<p style="font-size:12px;color:var(--text-muted);margin:2px 0 10px;">${editing.usuario
+              ? `Cuenta de acceso: <strong>${escapeHtml(editing.usuario)}</strong>. La contraseña solo puede restablecerla Soporte.`
+              : 'Este colaborador no tiene cuenta de acceso creada.'}</p>`
+          : `
+            <p style="font-size:12px;color:var(--text-muted);margin:2px 0 10px;">Opcional: si completas ambos campos, se crea una cuenta real para que el colaborador pueda loguearse en los sistemas de Qubira. Una vez creada, solo Soporte podrá cambiar la contraseña.</p>
+            ${inlineField('Usuario', false, `<input type="text" name="usuario" autocomplete="off" placeholder="usuario.apellido">`)}
+            ${inlineField('Contraseña', false, `<input type="password" name="contrasena" autocomplete="new-password" minlength="8" placeholder="Mínimo 8 caracteres">`)}
+          `}
 
         <div class="subsection-title">${icon('user-check')} Contacto de referencia</div>
         ${inlineField('Nombre de contacto de referencia', true, `<input type="text" name="contactoReferenciaNombre" required value="${escapeHtml(editing?.contactoReferenciaNombre || '')}">`)}
@@ -478,17 +482,17 @@ function wireEmployeeForm(modal, editing) {
   modal.querySelector('#save-employee').addEventListener('click', async () => {
     if (!form.reportValidity()) return;
 
-    const usuarioField = form.querySelector('input[name="usuario"]');
-    const contrasenaField = form.querySelector('input[name="contrasena"]');
-    if (usuarioField.value.trim() && !contrasenaField.value) {
-      if (!editing?.usuario) {
+    if (!editing) {
+      const usuarioField = form.querySelector('input[name="usuario"]');
+      const contrasenaField = form.querySelector('input[name="contrasena"]');
+      if (usuarioField.value.trim() && !contrasenaField.value) {
         toast('Escribe una contraseña para crear la cuenta de acceso.', 'error');
         return;
       }
-    }
-    if (!usuarioField.value.trim() && contrasenaField.value) {
-      toast('Escribe el nombre de usuario para poder crear la cuenta.', 'error');
-      return;
+      if (!usuarioField.value.trim() && contrasenaField.value) {
+        toast('Escribe el nombre de usuario para poder crear la cuenta.', 'error');
+        return;
+      }
     }
 
     const saveBtn = modal.querySelector('#save-employee');

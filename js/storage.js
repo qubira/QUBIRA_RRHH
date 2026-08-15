@@ -56,13 +56,10 @@ export const Store = {
   bootstrap,
   refresh,
 
-  // Cuentas del sistema (tabla `usuarios`, compartida por todo Qubira)
+  // Cuentas del sistema (tabla `usuarios`, compartida por todo Qubira) —
+  // solo lectura desde RRHH: se crean al dar de alta un empleado y la
+  // contraseña solo la restablece el panel de Soporte.
   getAccounts: async () => (await qrFetch('/api/usuarios')).usuarios,
-  getAccountRoles: async () => (await qrFetch('/api/usuarios/roles')).roles,
-  addAccount: async (data) => (await qrFetch('/api/usuarios', { method: 'POST', body: JSON.stringify(data) })).usuario,
-  updateAccount: async (id, data) => (await qrFetch(`/api/usuarios/${id}`, { method: 'PUT', body: JSON.stringify(data) })).usuario,
-  toggleAccountEstado: async (id) => qrFetch(`/api/usuarios/${id}/estado`, { method: 'PATCH' }),
-  deleteAccount: async (id) => qrFetch(`/api/usuarios/${id}`, { method: 'DELETE' }),
 
   // Departments
   getDepartments: () => db.departments,
