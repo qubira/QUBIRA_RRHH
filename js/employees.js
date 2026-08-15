@@ -315,8 +315,8 @@ function openEmployeeForm(id) {
             ${departmentOptions(editing?.departmentId)}
           </select>
         `)}
-        ${catalogFieldHtml({ label: 'Área de trabajo', name: 'areaTrabajoId', catalogKey: 'areasTrabajo', selectedId: editing?.areaTrabajoId, addable: false })}
-        ${catalogFieldHtml({ label: 'Cargo', name: 'cargoId', catalogKey: 'cargos', selectedId: editing?.cargoId, addable: false })}
+        ${catalogFieldHtml({ label: 'Área de trabajo', name: 'areaTrabajoId', catalogKey: 'areasTrabajo', selectedId: editing?.areaTrabajoId })}
+        ${catalogFieldHtml({ label: 'Cargo', name: 'cargoId', catalogKey: 'cargos', selectedId: editing?.cargoId })}
         ${inlineField('Jefe inmediato', false, `
           <select name="jefeInmediatoId">
             <option value="">Sin jefe asignado</option>
