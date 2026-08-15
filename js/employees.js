@@ -310,11 +310,19 @@ function openEmployeeForm(id) {
 
         <div class="subsection-title">${icon('briefcase')} Datos laborales</div>
         ${inlineField('Departamento (organización)', true, `
-          <select name="departmentId" required>
-            <option value="">Seleccionar...</option>
-            ${departmentOptions(editing?.departmentId)}
-          </select>
-        `)}
+          <div class="field-add-row">
+            <select name="departmentId" required style="flex:1;">
+              <option value="">Seleccionar...</option>
+              ${departmentOptions(editing?.departmentId)}
+            </select>
+            <button type="button" class="btn btn-secondary btn-sm btn-add-catalog" data-add-catalog="departmentId" data-catalog-key="__departments__" title="Agregar nuevo">${icon('plus')}</button>
+          </div>
+          <div class="catalog-add-inline" data-add-panel="departmentId">
+            <input type="text" data-add-input="departmentId" placeholder="Nuevo departamento...">
+            <button type="button" class="btn btn-primary btn-sm" data-confirm-add="departmentId" data-catalog-key="__departments__">Agregar</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-cancel-add="departmentId">Cancelar</button>
+          </div>
+        `, 'id="field-departmentId"')}
         ${catalogFieldHtml({ label: 'Área de trabajo', name: 'areaTrabajoId', catalogKey: 'areasTrabajo', selectedId: editing?.areaTrabajoId })}
         ${catalogFieldHtml({ label: 'Cargo', name: 'cargoId', catalogKey: 'cargos', selectedId: editing?.cargoId })}
         ${inlineField('Jefe inmediato', false, `
@@ -466,13 +474,17 @@ function wireEmployeeForm(modal, editing) {
       }
 
       try {
-        const item = await Store.addCatalogItem(catalogKey, value, parentId);
+        const isDepartment = catalogKey === '__departments__';
+        const item = isDepartment
+          ? await Store.addDepartment({ nombre: value, descripcion: '', encargadoId: null })
+          : await Store.addCatalogItem(catalogKey, value, parentId);
         const select = form.querySelector(`select[name="${target}"]`);
-        select.insertAdjacentHTML('beforeend', `<option value="${item.id}">${escapeHtml(value)}</option>`);
+        select.insertAdjacentHTML('beforeend', `<option value="${item.id}">${escapeHtml(isDepartment ? item.nombre : value)}</option>`);
         select.value = item.id;
         panel.classList.remove('active');
         input.value = '';
-        toast('Elemento agregado al catálogo.', 'success');
+        toast(isDepartment ? 'Departamento agregado correctamente.' : 'Elemento agregado al catálogo.', 'success');
+        document.dispatchEvent(new CustomEvent('data:changed'));
       } catch (err) {
         toast(err.message || 'No se pudo agregar el elemento.', 'error');
       }
