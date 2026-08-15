@@ -120,6 +120,21 @@ export const Store = {
     db.catalogs[catalogKey].push(res.data);
     return res.data;
   },
+  updateCatalogItem: async (catalogKey, id, nombre) => {
+    const res = await qrFetch(`/api/rrhh/catalogos/item/${id}`, {
+      method: 'PUT', body: JSON.stringify({ nombre }),
+    });
+    const list = db.catalogs[catalogKey] || [];
+    const i = list.findIndex(item => item.id === id);
+    if (i >= 0) list[i] = { ...list[i], nombre: res.data.nombre };
+    return res.data;
+  },
+  deleteCatalogItem: async (catalogKey, id) => {
+    await qrFetch(`/api/rrhh/catalogos/item/${id}`, { method: 'DELETE' });
+    for (const key of Object.keys(db.catalogs)) {
+      db.catalogs[key] = db.catalogs[key].filter(item => item.id !== id && item.parentId !== id);
+    }
+  },
 
   // Foto de perfil (sube a Cloudinary vía la API, no usa qrFetch porque
   // el body es FormData y no debe llevar Content-Type: application/json)
