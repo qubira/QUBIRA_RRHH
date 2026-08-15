@@ -6,6 +6,23 @@ import {
 } from './utils.js';
 
 let state = { search: '', departmentId: '', estado: '' };
+let accountRolesByUsername = {};
+
+async function loadAccountRoles() {
+  try {
+    const accounts = await Store.getAccounts();
+    accountRolesByUsername = Object.fromEntries(
+      accounts.map(a => [a.username.toLowerCase(), a.rol])
+    );
+  } catch (_) {
+    accountRolesByUsername = {};
+  }
+}
+
+function accountRole(emp) {
+  if (!emp.usuario) return null;
+  return accountRolesByUsername[emp.usuario.toLowerCase()] || null;
+}
 
 function departmentOptions(selectedId) {
   return Store.getDepartments().map(d =>
@@ -144,6 +161,7 @@ export function renderEmployees() {
   document.getElementById('btn-new-employee').addEventListener('click', () => openEmployeeForm());
 
   renderTable();
+  loadAccountRoles().then(renderTable);
 }
 
 function renderTable() {
@@ -170,7 +188,9 @@ function renderTable() {
           <tr>
             <th>Empleado</th>
             <th>Cargo</th>
+            <th>Área de trabajo</th>
             <th>Departamento</th>
+            <th>Rol</th>
             <th>Ingreso</th>
             <th>Estado</th>
             <th></th>
@@ -206,7 +226,9 @@ function rowHtml(emp) {
         </div>
       </td>
       <td>${escapeHtml(catalogName('cargos', emp.cargoId))}</td>
+      <td>${escapeHtml(catalogName('areasTrabajo', emp.areaTrabajoId))}</td>
       <td>${dep ? `<span class="tag">${escapeHtml(dep.nombre)}</span>` : '—'}</td>
+      <td>${accountRole(emp) ? `<span class="tag">${escapeHtml(accountRole(emp))}</span>` : '—'}</td>
       <td>${formatDate(emp.fechaIngreso)}</td>
       <td><span class="badge ${statusMeta.cls}">${statusMeta.label}</span></td>
       <td>
