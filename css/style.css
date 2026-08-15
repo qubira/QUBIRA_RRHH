@@ -113,7 +113,12 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 8px 12px;
+  scrollbar-width: thin;
+  scrollbar-color: #374151 transparent;
 }
+.sidebar nav::-webkit-scrollbar { width: 6px; }
+.sidebar nav::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+.sidebar nav::-webkit-scrollbar-track { background: transparent; }
 
 .nav-section-label {
   color: #4b5563;
