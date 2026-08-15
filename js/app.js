@@ -8,6 +8,7 @@ import { renderRecruitment } from './recruitment.js';
 import { renderPayroll } from './payroll.js';
 import { renderDevelopment } from './development.js';
 import { renderClimate } from './climate.js';
+import { renderAccounts } from './accounts.js';
 import { contractStatus } from './utils.js';
 
 const VIEWS = {
@@ -20,6 +21,7 @@ const VIEWS = {
   payroll: { render: renderPayroll, title: 'Administración y Nómina', subtitle: 'Liquidaciones, vacaciones y licencias' },
   development: { render: renderDevelopment, title: 'Capacitación y Desarrollo', subtitle: 'Formación del personal y evaluaciones de desempeño' },
   climate: { render: renderClimate, title: 'Clima Laboral', subtitle: 'Encuestas de clima y gestión de conflictos' },
+  accounts: { render: renderAccounts, title: 'Cuentas de usuario', subtitle: 'Cuentas de acceso al sistema, roles y permisos' },
 };
 
 let currentView = 'dashboard';
