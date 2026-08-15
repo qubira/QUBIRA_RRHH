@@ -792,6 +792,22 @@ tbody tr:hover { background: #fafafa; }
   text-align: center;
 }
 .employee-photo-upload #photo-placeholder .icon { width: 18px; height: 18px; }
+.employee-photo-upload.is-uploading {
+  opacity: .55;
+  cursor: wait;
+  position: relative;
+}
+.employee-photo-upload.is-uploading::after {
+  content: "";
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: employee-photo-spin .7s linear infinite;
+}
+@keyframes employee-photo-spin { to { transform: rotate(360deg); } }
 .employee-photo-fields { flex: 1; min-width: 0; }
 
 .avatar--photo { padding: 0; overflow: hidden; }
