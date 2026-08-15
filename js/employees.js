@@ -324,7 +324,13 @@ function openEmployeeForm(id) {
           </select>
         `)}
         ${inlineField('Fecha de ingreso', true, `<input type="date" name="fechaIngreso" required value="${editing?.fechaIngreso || ''}">`)}
-        <p style="font-size:12px;color:var(--text-muted);margin:2px 0 10px;">El usuario y la contraseña de acceso los genera el área de TI una vez registrado el colaborador; será el propio colaborador quien defina su contraseña.</p>
+
+        <div class="subsection-title">${icon('user-check')} Usuario y contraseña</div>
+        <p style="font-size:12px;color:var(--text-muted);margin:2px 0 10px;">${editing?.usuario
+          ? 'Este colaborador ya tiene una cuenta de acceso. Deja la contraseña en blanco si no quieres cambiarla.'
+          : 'Opcional: si completas ambos campos, se crea una cuenta real para que el colaborador pueda loguearse en los sistemas de Qubira.'}</p>
+        ${inlineField('Usuario', false, `<input type="text" name="usuario" autocomplete="off" value="${escapeHtml(editing?.usuario || '')}" placeholder="usuario.apellido">`)}
+        ${inlineField(editing?.usuario ? 'Nueva contraseña' : 'Contraseña', false, `<input type="password" name="contrasena" autocomplete="new-password" minlength="8" placeholder="Mínimo 8 caracteres">`)}
 
         <div class="subsection-title">${icon('user-check')} Contacto de referencia</div>
         ${inlineField('Nombre de contacto de referencia', true, `<input type="text" name="contactoReferenciaNombre" required value="${escapeHtml(editing?.contactoReferenciaNombre || '')}">`)}
@@ -471,6 +477,20 @@ function wireEmployeeForm(modal, editing) {
 
   modal.querySelector('#save-employee').addEventListener('click', async () => {
     if (!form.reportValidity()) return;
+
+    const usuarioField = form.querySelector('input[name="usuario"]');
+    const contrasenaField = form.querySelector('input[name="contrasena"]');
+    if (usuarioField.value.trim() && !contrasenaField.value) {
+      if (!editing?.usuario) {
+        toast('Escribe una contraseña para crear la cuenta de acceso.', 'error');
+        return;
+      }
+    }
+    if (!usuarioField.value.trim() && contrasenaField.value) {
+      toast('Escribe el nombre de usuario para poder crear la cuenta.', 'error');
+      return;
+    }
+
     const saveBtn = modal.querySelector('#save-employee');
     saveBtn.disabled = true;
     if (form.pendingFotoUpload) {
@@ -482,6 +502,7 @@ function wireEmployeeForm(modal, editing) {
     const data = Object.fromEntries(new FormData(form).entries());
     data.nombre = data.primerNombre;
     data.apellido = data.primerApellido;
+    data.email = employeeEmail({ emailLocal: data.emailLocal, emailDominioId: data.emailDominioId });
     const sessionUser = JSON.parse(localStorage.getItem('rrhh_user') || 'null');
     const meta = { usuario: sessionUser ? `${sessionUser.nombre} ${sessionUser.apellidos || ''}`.trim() : 'Administrador', ip };
 
@@ -490,7 +511,7 @@ function wireEmployeeForm(modal, editing) {
         await Store.updateEmployee(editing.id, data, meta);
         toast('Empleado actualizado correctamente.', 'success');
       } else {
-        await Store.addEmployee({ ...data, estado: data.estado || 'activo', usuario: '', contrasena: '' }, meta);
+        await Store.addEmployee({ ...data, estado: data.estado || 'activo' }, meta);
         toast('Empleado creado correctamente.', 'success');
       }
       closeModal();
@@ -559,7 +580,7 @@ function openEmployeeDetail(id) {
         <div class="detail-item"><dt>Área de trabajo</dt><dd>${escapeHtml(catalogName('areasTrabajo', emp.areaTrabajoId))}</dd></div>
         <div class="detail-item"><dt>Jefe inmediato</dt><dd>${jefe ? escapeHtml(fullName(jefe)) : '—'}</dd></div>
         <div class="detail-item"><dt>Fecha de ingreso</dt><dd>${formatDate(emp.fechaIngreso)}</dd></div>
-        <div class="detail-item"><dt>Usuario de acceso</dt><dd>${escapeHtml(emp.usuario || 'Pendiente (lo asigna TI)')}</dd></div>
+        <div class="detail-item"><dt>Usuario de acceso</dt><dd>${escapeHtml(emp.usuario || 'Sin cuenta creada')}</dd></div>
         <div class="detail-item"><dt>Contacto de referencia</dt><dd>${escapeHtml(emp.contactoReferenciaNombre || '—')} ${escapeHtml(emp.contactoReferenciaTel1 || '')}</dd></div>
         ${emp.estado === 'inactivo' ? `<div class="detail-item"><dt>Observaciones de baja</dt><dd>${escapeHtml(emp.observacionesBaja || '—')}</dd></div>` : ''}
       </dl>
