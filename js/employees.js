@@ -26,6 +26,27 @@ function catalogName(catalogKey, id) {
   return item ? item.nombre : '—';
 }
 
+// ---------------------------------------------------------------------------
+// Datos sensibles — el backend ya devuelve estos campos como "••••••" para
+// quien no sea ADG/Gerente. Estos helpers evitan que ese marcador se rompa
+// al pasar por formatDate()/catalogName() (que esperan un id o ISO real).
+// ---------------------------------------------------------------------------
+const MASK = '••••••';
+const isMasked = (v) => v === MASK;
+function maskedCatalog(catalogKey, id) { return isMasked(id) ? MASK : catalogName(catalogKey, id); }
+function maskedDate(iso) { return isMasked(iso) ? MASK : formatDate(iso); }
+function maskedText(v, fallback = '—') { return isMasked(v) ? MASK : (v || fallback); }
+
+const SENSITIVE_FIELD_NAMES = [
+  'segundoNombre', 'segundoApellido', 'fechaNacimiento',
+  'tipoDocumentoId', 'numeroDocumento', 'nacionalidadId', 'estadoCivilId',
+  'telefono', 'hijos',
+  'departamentoGeoId', 'provinciaId', 'distritoId', 'codigoPostal', 'direccion', 'coordenadas',
+  'cuentaAntecedentes', 'tipoAntecedenteId',
+  'contactoReferenciaNombre', 'contactoReferenciaTel1', 'contactoReferenciaTel2',
+  'observacionesBaja',
+];
+
 function employeeEmail(emp) {
   const dom = Store.getCatalogItem('dominiosEmail', emp.emailDominioId);
   if (dom && emp.emailLocal) return `${emp.emailLocal}@${dom.nombre}`;
@@ -242,6 +263,14 @@ function openEmployeeForm(id) {
     size: 'lg',
     bodyHtml: `
       <form id="employee-form" class="form-compact">
+        ${editing && !Store.isPrivileged() ? `
+          <div class="unlock-bar" id="unlock-bar">
+            ${icon('lock')}
+            <span>Los datos sensibles están protegidos. Podés editar los campos generales sin restricción.</span>
+            <input type="password" id="unlock-password" placeholder="Tu contraseña">
+            <button type="button" class="btn btn-primary btn-sm" id="unlock-btn">Desbloquear para editar</button>
+          </div>
+        ` : ''}
         <div class="subsection-title">${icon('users')} Datos personales</div>
         <div class="employee-photo-row">
           <div class="employee-photo-upload" id="photo-upload-box" title="Subir foto">
@@ -375,6 +404,40 @@ function toggleConditionalField(form, { triggerSelector, fieldId, fieldName, sho
 
 function wireEmployeeForm(modal, editing) {
   const form = modal.querySelector('#employee-form');
+  form.unlockedPassword = null;
+
+  if (editing && !Store.isPrivileged()) {
+    SENSITIVE_FIELD_NAMES.forEach(name => {
+      const el = form.querySelector(`[name="${name}"]`);
+      if (el) el.disabled = true;
+    });
+
+    const unlockBtn = form.querySelector('#unlock-btn');
+    const unlockInput = form.querySelector('#unlock-password');
+    const doUnlock = async () => {
+      const password = unlockInput.value;
+      if (!password) return;
+      unlockBtn.disabled = true;
+      try {
+        const unmasked = await Store.unlockEmployee(editing.id, password);
+        SENSITIVE_FIELD_NAMES.forEach(name => {
+          const el = form.querySelector(`[name="${name}"]`);
+          if (!el) return;
+          el.disabled = false;
+          if (unmasked[name] != null) el.value = unmasked[name];
+        });
+        form.unlockedPassword = password;
+        form.querySelector('#unlock-bar').innerHTML = `${icon('check-circle')} <span>Datos desbloqueados para editar.</span>`;
+        form.querySelector('#select-cuenta-antecedentes')?.dispatchEvent(new Event('change'));
+        toast('Datos desbloqueados.', 'success');
+      } catch (err) {
+        toast(err.message || 'No se pudo verificar la contraseña.', 'error');
+        unlockBtn.disabled = false;
+      }
+    };
+    unlockBtn.addEventListener('click', doUnlock);
+    unlockInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doUnlock(); } });
+  }
 
   const photoBox = form.querySelector('#photo-upload-box');
   const photoInput = form.querySelector('#photo-input');
@@ -507,6 +570,7 @@ function wireEmployeeForm(modal, editing) {
     data.nombre = data.primerNombre;
     data.apellido = data.primerApellido;
     data.email = employeeEmail({ emailLocal: data.emailLocal, emailDominioId: data.emailDominioId });
+    if (form.unlockedPassword) data.password = form.unlockedPassword;
     const sessionUser = JSON.parse(localStorage.getItem('rrhh_user') || 'null');
     const meta = { usuario: sessionUser ? `${sessionUser.nombre} ${sessionUser.apellidos || ''}`.trim() : 'Administrador', ip };
 
@@ -546,93 +610,129 @@ async function handleDelete(id) {
 // Ficha de detalle + historial de auditoría
 // ---------------------------------------------------------------------------
 
+function buildDetailBody(emp) {
+  const dep = Store.getDepartment(emp.departmentId);
+  const jefe = emp.jefeInmediatoId ? Store.getEmployee(emp.jefeInmediatoId) : null;
+  const contracts = Store.getContractsByEmployee(emp.id);
+  const documents = Store.getDocumentsByEmployee(emp.id);
+  const auditEntries = Store.getAuditLogByEmployee(emp.id);
+  const statusMeta = EMPLOYEE_STATUS_META[emp.estado] || EMPLOYEE_STATUS_META.activo;
+  const locked = !Store.isPrivileged() && isMasked(emp.numeroDocumento || emp.telefono || emp.direccion);
+
+  return `
+    <div class="person-cell" style="margin-bottom:18px;">
+      ${avatarHtml(emp, 52)}
+      <div>
+        <div style="font-size:16px;font-weight:700;">${escapeHtml(fullName(emp))}</div>
+        <div class="cell-sub">${escapeHtml(catalogName('cargos', emp.cargoId))} · <span class="badge ${statusMeta.cls}">${statusMeta.label}</span></div>
+      </div>
+    </div>
+    ${locked ? `
+      <div class="unlock-bar" id="unlock-bar">
+        ${icon('lock')}
+        <span>Los datos sensibles de este empleado están protegidos.</span>
+        <input type="password" id="unlock-password" placeholder="Tu contraseña">
+        <button type="button" class="btn btn-primary btn-sm" id="unlock-btn">Ver datos completos</button>
+      </div>
+    ` : ''}
+    <dl class="detail-grid">
+      <div class="detail-item"><dt>Documento</dt><dd>${maskedCatalog('tiposDocumento', emp.tipoDocumentoId)} ${escapeHtml(maskedText(emp.numeroDocumento))}</dd></div>
+      <div class="detail-item"><dt>Nacionalidad</dt><dd>${maskedCatalog('nacionalidades', emp.nacionalidadId)}</dd></div>
+      <div class="detail-item"><dt>Estado civil</dt><dd>${maskedCatalog('estadosCiviles', emp.estadoCivilId)}</dd></div>
+      <div class="detail-item"><dt>Hijos</dt><dd>${escapeHtml(maskedText(emp.hijos))}</dd></div>
+      <div class="detail-item"><dt>Email</dt><dd>${escapeHtml(employeeEmail(emp))}</dd></div>
+      <div class="detail-item"><dt>Teléfono</dt><dd>${escapeHtml(maskedText(emp.telefono))}</dd></div>
+      <div class="detail-item"><dt>Fecha de nacimiento</dt><dd>${maskedDate(emp.fechaNacimiento)}</dd></div>
+      <div class="detail-item"><dt>Dirección</dt><dd>${escapeHtml(maskedText(emp.direccion))}</dd></div>
+      <div class="detail-item"><dt>Ubicación</dt><dd>${isMasked(emp.distritoId) ? MASK : `${maskedCatalog('distritos', emp.distritoId)}, ${maskedCatalog('provincias', emp.provinciaId)}, ${maskedCatalog('departamentosGeo', emp.departamentoGeoId)}`}</dd></div>
+      <div class="detail-item"><dt>Código postal</dt><dd>${escapeHtml(maskedText(emp.codigoPostal))}</dd></div>
+      <div class="detail-item"><dt>Coordenadas</dt><dd>${escapeHtml(maskedText(emp.coordenadas))}</dd></div>
+      <div class="detail-item"><dt>Antecedentes</dt><dd>${isMasked(emp.cuentaAntecedentes) ? MASK : (emp.cuentaAntecedentes === 'Si' ? maskedCatalog('tiposAntecedente', emp.tipoAntecedenteId) : 'No')}</dd></div>
+      <div class="detail-item"><dt>Departamento</dt><dd>${dep ? escapeHtml(dep.nombre) : '—'}</dd></div>
+      <div class="detail-item"><dt>Área de trabajo</dt><dd>${maskedCatalog('areasTrabajo', emp.areaTrabajoId)}</dd></div>
+      <div class="detail-item"><dt>Jefe inmediato</dt><dd>${jefe ? escapeHtml(fullName(jefe)) : '—'}</dd></div>
+      <div class="detail-item"><dt>Fecha de ingreso</dt><dd>${formatDate(emp.fechaIngreso)}</dd></div>
+      <div class="detail-item"><dt>Usuario de acceso</dt><dd>${escapeHtml(emp.usuario || 'Sin cuenta creada')}</dd></div>
+      <div class="detail-item"><dt>Contacto de referencia</dt><dd>${escapeHtml(maskedText(emp.contactoReferenciaNombre))} ${escapeHtml(isMasked(emp.contactoReferenciaTel1) ? '' : (emp.contactoReferenciaTel1 || ''))}</dd></div>
+      ${emp.estado === 'inactivo' ? `<div class="detail-item"><dt>Observaciones de baja</dt><dd>${escapeHtml(maskedText(emp.observacionesBaja))}</dd></div>` : ''}
+    </dl>
+
+    <div class="subsection-title">${icon('file-text')} Contratos (${contracts.length})</div>
+    <div class="mini-list">
+      ${contracts.length === 0 ? '<p style="color:var(--text-muted);font-size:13px;">Sin contratos registrados.</p>' :
+        contracts.map(c => {
+          const meta = CONTRACT_STATUS_META[contractStatus(c)];
+          return `<div class="mini-row"><span>${escapeHtml(c.tipo)} — ${formatDate(c.fechaInicio)} a ${c.fechaFin ? formatDate(c.fechaFin) : 'Indefinido'}</span><span class="badge ${meta.cls}">${meta.label}</span></div>`;
+        }).join('')}
+    </div>
+
+    <div class="subsection-title">${icon('folder')} Documentos (${documents.length})</div>
+    <div class="mini-list">
+      ${documents.length === 0 ? '<p style="color:var(--text-muted);font-size:13px;">Sin documentos cargados.</p>' :
+        documents.map(d => `<div class="mini-row"><span>${escapeHtml(d.categoria)} — ${escapeHtml(d.nombreArchivo)}</span><span class="cell-sub">${formatDate(d.fechaSubida)}</span></div>`).join('')}
+    </div>
+
+    <div class="subsection-title">${icon('edit')} Historial de cambios — ${auditEntries.length} modificación(es)</div>
+    ${auditEntries.length === 0 ? '<p style="color:var(--text-muted);font-size:13px;">Todavía no se registraron cambios sobre este empleado.</p>' : `
+    <div class="audit-table-wrap">
+      <table class="audit-table">
+        <thead>
+          <tr>
+            <th>Fecha y hora</th>
+            <th>Usuario</th>
+            <th>Campo</th>
+            <th>Valor anterior</th>
+            <th>Valor nuevo</th>
+            <th>IP</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${auditEntries.map(a => `
+            <tr>
+              <td>${formatDateTime(a.fecha)}</td>
+              <td>${escapeHtml(a.usuario)}</td>
+              <td>${escapeHtml(a.campo)}</td>
+              <td>${escapeHtml(maskedText(a.valorAnterior))}</td>
+              <td>${escapeHtml(maskedText(a.valorNuevo))}</td>
+              <td>${escapeHtml(a.ip)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>`}
+  `;
+}
+
+function wireDetailUnlock(modal, emp) {
+  const btn = modal.querySelector('#unlock-btn');
+  if (!btn) return;
+  const input = modal.querySelector('#unlock-password');
+  const doUnlock = async () => {
+    const password = input.value;
+    if (!password) return;
+    btn.disabled = true;
+    try {
+      const unmasked = await Store.unlockEmployee(emp.id, password);
+      modal.querySelector('.modal__body').innerHTML = buildDetailBody(unmasked);
+      wireDetailUnlock(modal, unmasked);
+    } catch (err) {
+      toast(err.message || 'No se pudo verificar la contraseña.', 'error');
+      btn.disabled = false;
+    }
+  };
+  btn.addEventListener('click', doUnlock);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doUnlock(); } });
+}
+
 function openEmployeeDetail(id) {
   const emp = Store.getEmployee(id);
   if (!emp) return;
-  const dep = Store.getDepartment(emp.departmentId);
-  const jefe = emp.jefeInmediatoId ? Store.getEmployee(emp.jefeInmediatoId) : null;
-  const contracts = Store.getContractsByEmployee(id);
-  const documents = Store.getDocumentsByEmployee(id);
-  const auditEntries = Store.getAuditLogByEmployee(id);
-  const statusMeta = EMPLOYEE_STATUS_META[emp.estado] || EMPLOYEE_STATUS_META.activo;
 
-  openModal({
+  const modal = openModal({
     title: 'Ficha del empleado',
     size: 'lg',
-    bodyHtml: `
-      <div class="person-cell" style="margin-bottom:18px;">
-        ${avatarHtml(emp, 52)}
-        <div>
-          <div style="font-size:16px;font-weight:700;">${escapeHtml(fullName(emp))}</div>
-          <div class="cell-sub">${escapeHtml(catalogName('cargos', emp.cargoId))} · <span class="badge ${statusMeta.cls}">${statusMeta.label}</span></div>
-        </div>
-      </div>
-      <dl class="detail-grid">
-        <div class="detail-item"><dt>Documento</dt><dd>${escapeHtml(catalogName('tiposDocumento', emp.tipoDocumentoId))} ${escapeHtml(emp.numeroDocumento || '')}</dd></div>
-        <div class="detail-item"><dt>Nacionalidad</dt><dd>${escapeHtml(catalogName('nacionalidades', emp.nacionalidadId))}</dd></div>
-        <div class="detail-item"><dt>Estado civil</dt><dd>${escapeHtml(catalogName('estadosCiviles', emp.estadoCivilId))}</dd></div>
-        <div class="detail-item"><dt>Hijos</dt><dd>${escapeHtml(emp.hijos || '—')}</dd></div>
-        <div class="detail-item"><dt>Email</dt><dd>${escapeHtml(employeeEmail(emp))}</dd></div>
-        <div class="detail-item"><dt>Teléfono</dt><dd>${escapeHtml(emp.telefono || '—')}</dd></div>
-        <div class="detail-item"><dt>Fecha de nacimiento</dt><dd>${formatDate(emp.fechaNacimiento)}</dd></div>
-        <div class="detail-item"><dt>Dirección</dt><dd>${escapeHtml(emp.direccion || '—')}</dd></div>
-        <div class="detail-item"><dt>Ubicación</dt><dd>${escapeHtml(catalogName('distritos', emp.distritoId))}, ${escapeHtml(catalogName('provincias', emp.provinciaId))}, ${escapeHtml(catalogName('departamentosGeo', emp.departamentoGeoId))}</dd></div>
-        <div class="detail-item"><dt>Código postal</dt><dd>${escapeHtml(emp.codigoPostal || '—')}</dd></div>
-        <div class="detail-item"><dt>Coordenadas</dt><dd>${escapeHtml(emp.coordenadas || '—')}</dd></div>
-        <div class="detail-item"><dt>Antecedentes</dt><dd>${emp.cuentaAntecedentes === 'Si' ? escapeHtml(catalogName('tiposAntecedente', emp.tipoAntecedenteId)) : 'No'}</dd></div>
-        <div class="detail-item"><dt>Departamento</dt><dd>${dep ? escapeHtml(dep.nombre) : '—'}</dd></div>
-        <div class="detail-item"><dt>Área de trabajo</dt><dd>${escapeHtml(catalogName('areasTrabajo', emp.areaTrabajoId))}</dd></div>
-        <div class="detail-item"><dt>Jefe inmediato</dt><dd>${jefe ? escapeHtml(fullName(jefe)) : '—'}</dd></div>
-        <div class="detail-item"><dt>Fecha de ingreso</dt><dd>${formatDate(emp.fechaIngreso)}</dd></div>
-        <div class="detail-item"><dt>Usuario de acceso</dt><dd>${escapeHtml(emp.usuario || 'Sin cuenta creada')}</dd></div>
-        <div class="detail-item"><dt>Contacto de referencia</dt><dd>${escapeHtml(emp.contactoReferenciaNombre || '—')} ${escapeHtml(emp.contactoReferenciaTel1 || '')}</dd></div>
-        ${emp.estado === 'inactivo' ? `<div class="detail-item"><dt>Observaciones de baja</dt><dd>${escapeHtml(emp.observacionesBaja || '—')}</dd></div>` : ''}
-      </dl>
-
-      <div class="subsection-title">${icon('file-text')} Contratos (${contracts.length})</div>
-      <div class="mini-list">
-        ${contracts.length === 0 ? '<p style="color:var(--text-muted);font-size:13px;">Sin contratos registrados.</p>' :
-          contracts.map(c => {
-            const meta = CONTRACT_STATUS_META[contractStatus(c)];
-            return `<div class="mini-row"><span>${escapeHtml(c.tipo)} — ${formatDate(c.fechaInicio)} a ${c.fechaFin ? formatDate(c.fechaFin) : 'Indefinido'}</span><span class="badge ${meta.cls}">${meta.label}</span></div>`;
-          }).join('')}
-      </div>
-
-      <div class="subsection-title">${icon('folder')} Documentos (${documents.length})</div>
-      <div class="mini-list">
-        ${documents.length === 0 ? '<p style="color:var(--text-muted);font-size:13px;">Sin documentos cargados.</p>' :
-          documents.map(d => `<div class="mini-row"><span>${escapeHtml(d.categoria)} — ${escapeHtml(d.nombreArchivo)}</span><span class="cell-sub">${formatDate(d.fechaSubida)}</span></div>`).join('')}
-      </div>
-
-      <div class="subsection-title">${icon('edit')} Historial de cambios — ${auditEntries.length} modificación(es)</div>
-      ${auditEntries.length === 0 ? '<p style="color:var(--text-muted);font-size:13px;">Todavía no se registraron cambios sobre este empleado.</p>' : `
-      <div class="audit-table-wrap">
-        <table class="audit-table">
-          <thead>
-            <tr>
-              <th>Fecha y hora</th>
-              <th>Usuario</th>
-              <th>Campo</th>
-              <th>Valor anterior</th>
-              <th>Valor nuevo</th>
-              <th>IP</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${auditEntries.map(a => `
-              <tr>
-                <td>${formatDateTime(a.fecha)}</td>
-                <td>${escapeHtml(a.usuario)}</td>
-                <td>${escapeHtml(a.campo)}</td>
-                <td>${escapeHtml(a.valorAnterior)}</td>
-                <td>${escapeHtml(a.valorNuevo)}</td>
-                <td>${escapeHtml(a.ip)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>`}
-    `,
+    bodyHtml: buildDetailBody(emp),
     footerHtml: `<button class="btn btn-secondary" data-close>Cerrar</button>`,
   });
+  wireDetailUnlock(modal, emp);
 }

@@ -767,6 +767,29 @@ tbody tr:hover { background: #fafafa; }
 }
 .close-btn:hover { background: var(--gray-bg); color: var(--text); }
 
+/* ---------- Datos sensibles protegidos ---------- */
+.unlock-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+.unlock-bar .icon { width: 16px; height: 16px; flex-shrink: 0; }
+.unlock-bar span { flex: 1; }
+.unlock-bar input {
+  padding: 6px 9px;
+  font-size: 13px;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-sm);
+  width: 160px;
+}
+
 /* detail view sections */
 .detail-grid {
   display: grid;

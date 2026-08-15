@@ -37,7 +37,7 @@ let db = {
   jobPostings: [], candidates: [], payrollRecords: [], vacations: [],
   trainings: [], trainingEnrollments: [], performanceReviews: [],
   climateSurveys: [], climateSurveyResponses: [], conflictCases: [],
-  catalogs: {}, auditLog: [],
+  catalogs: {}, auditLog: [], privileged: false,
 };
 
 /* Carga inicial — hay que esperarla antes de renderizar cualquier vista */
@@ -83,6 +83,17 @@ export const Store = {
   // Employees
   getEmployees: () => db.employees,
   getEmployee: (id) => db.employees.find(e => e.id === id),
+  // Si es true, esta cuenta ve los datos sensibles del empleado directo,
+  // sin pedir contraseña (Área de trabajo = ADG y Cargo = Gerente).
+  isPrivileged: () => !!db.privileged,
+  // Verifica la propia contraseña de quien está logueado y, si es correcta,
+  // devuelve ese empleado con TODOS los campos sin enmascarar.
+  unlockEmployee: async (id, password) => {
+    const res = await qrFetch(`/api/rrhh/empleados/${id}/unlock`, {
+      method: 'POST', body: JSON.stringify({ password }),
+    });
+    return res.data;
+  },
   addEmployee: async (emp, meta = {}) => {
     const res = await qrFetch('/api/rrhh/empleados', { method: 'POST', body: JSON.stringify({ ...emp, meta }) });
     db.employees.push(res.data);
