@@ -116,6 +116,31 @@ export const Store = {
     return res.data;
   },
 
+  // Foto de perfil (sube a Cloudinary vía la API, no usa qrFetch porque
+  // el body es FormData y no debe llevar Content-Type: application/json)
+  uploadFoto: async (file) => {
+    const token = qrToken();
+    const fd = new FormData();
+    fd.append('foto', file);
+
+    const res = await fetch(QR_API_BASE + '/api/rrhh/empleados/foto', {
+      method: 'POST',
+      headers: token ? { Authorization: 'Bearer ' + token } : {},
+      body: fd,
+    });
+
+    if (res.status === 401) {
+      localStorage.removeItem('rrhh_token');
+      localStorage.removeItem('rrhh_user');
+      window.location.href = 'login.html';
+      throw new Error('SESSION_EXPIRED');
+    }
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('Error ' + res.status));
+    return data.data.url;
+  },
+
   // Contracts
   getContracts: () => db.contracts,
   getContract: (id) => db.contracts.find(c => c.id === id),

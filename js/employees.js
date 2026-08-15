@@ -375,11 +375,21 @@ function wireEmployeeForm(modal, editing) {
   photoInput.addEventListener('change', async () => {
     const file = photoInput.files[0];
     if (!file) return;
+
+    /* Vista previa instantánea local mientras se sube la imagen real */
     const dataUrl = await resizeImageToDataUrl(file);
-    photoHidden.value = dataUrl;
     photoPreview.src = dataUrl;
     photoPreview.style.display = '';
     photoPlaceholder.style.display = 'none';
+
+    photoBox.classList.add('is-uploading');
+    form.pendingFotoUpload = Store.uploadFoto(file)
+      .then((url) => { photoHidden.value = url; })
+      .catch((err) => {
+        toast(err.message || 'No se pudo subir la foto.', 'error');
+        photoHidden.value = '';
+      })
+      .finally(() => { photoBox.classList.remove('is-uploading'); form.pendingFotoUpload = null; });
   });
 
   toggleConditionalField(form, {
@@ -463,6 +473,11 @@ function wireEmployeeForm(modal, editing) {
     if (!form.reportValidity()) return;
     const saveBtn = modal.querySelector('#save-employee');
     saveBtn.disabled = true;
+    if (form.pendingFotoUpload) {
+      saveBtn.textContent = 'Subiendo foto...';
+      await form.pendingFotoUpload;
+      saveBtn.textContent = editing ? 'Guardar cambios' : 'Crear empleado';
+    }
     const ip = await getClientIp();
     const data = Object.fromEntries(new FormData(form).entries());
     data.nombre = data.primerNombre;
