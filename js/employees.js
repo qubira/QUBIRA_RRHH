@@ -58,7 +58,7 @@ const SENSITIVE_FIELD_NAMES = [
   'segundoNombre', 'segundoApellido', 'fechaNacimiento',
   'tipoDocumentoId', 'numeroDocumento', 'nacionalidadId', 'estadoCivilId',
   'telefono', 'hijos',
-  'departamentoGeoId', 'provinciaId', 'distritoId', 'codigoPostal', 'direccion', 'coordenadas',
+  'paisId', 'departamentoGeoId', 'provinciaId', 'distritoId', 'codigoPostal', 'direccion', 'coordenadas',
   'cuentaAntecedentes', 'tipoAntecedenteId',
   'contactoReferenciaNombre', 'contactoReferenciaTel1', 'contactoReferenciaTel2',
   'observacionesBaja',
@@ -353,6 +353,7 @@ async function openEmployeeForm(id) {
         `)}
 
         <div class="subsection-title">${icon('building')} Domicilio</div>
+        ${catalogFieldHtml({ label: 'País', name: 'paisId', catalogKey: 'paises', selectedId: editing?.paisId })}
         ${catalogFieldHtml({ label: 'Departamento', name: 'departamentoGeoId', catalogKey: 'departamentosGeo', selectedId: editing?.departamentoGeoId })}
         ${catalogFieldHtml({ label: 'Provincia', name: 'provinciaId', catalogKey: 'provincias', selectedId: editing?.provinciaId, parentId: editing?.departamentoGeoId || '' })}
         ${catalogFieldHtml({ label: 'Distrito', name: 'distritoId', catalogKey: 'distritos', selectedId: editing?.distritoId, parentId: editing?.provinciaId || '' })}
@@ -691,7 +692,7 @@ function buildDetailBody(emp) {
       <div class="detail-item"><dt>Teléfono</dt><dd>${escapeHtml(maskedText(emp.telefono))}</dd></div>
       <div class="detail-item"><dt>Fecha de nacimiento</dt><dd>${maskedDate(emp.fechaNacimiento)}</dd></div>
       <div class="detail-item"><dt>Dirección</dt><dd>${escapeHtml(maskedText(emp.direccion))}</dd></div>
-      <div class="detail-item"><dt>Ubicación</dt><dd>${isMasked(emp.distritoId) ? MASK : `${maskedCatalog('distritos', emp.distritoId)}, ${maskedCatalog('provincias', emp.provinciaId)}, ${maskedCatalog('departamentosGeo', emp.departamentoGeoId)}`}</dd></div>
+      <div class="detail-item"><dt>Ubicación</dt><dd>${isMasked(emp.distritoId) ? MASK : `${maskedCatalog('distritos', emp.distritoId)}, ${maskedCatalog('provincias', emp.provinciaId)}, ${maskedCatalog('departamentosGeo', emp.departamentoGeoId)}, ${maskedCatalog('paises', emp.paisId)}`}</dd></div>
       <div class="detail-item"><dt>Código postal</dt><dd>${escapeHtml(maskedText(emp.codigoPostal))}</dd></div>
       <div class="detail-item"><dt>Coordenadas</dt><dd>${escapeHtml(maskedText(emp.coordenadas))}</dd></div>
       <div class="detail-item"><dt>Antecedentes</dt><dd>${isMasked(emp.cuentaAntecedentes) ? MASK : (emp.cuentaAntecedentes === 'Si' ? maskedCatalog('tiposAntecedente', emp.tipoAntecedenteId) : 'No')}</dd></div>
