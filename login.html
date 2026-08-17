@@ -126,14 +126,6 @@
   @keyframes enterUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
   @keyframes scaleIn { from{opacity:0;transform:scale(.96) translateY(16px)} to{opacity:1;transform:scale(1) translateY(0)} }
 
-  .close-btn {
-    position: absolute; top: 16px; right: 16px; width: 36px; height: 36px;
-    border-radius: 10px; background: rgba(0,0,0,0.06); border: 1px solid var(--border);
-    color: var(--text); font-size: 17px; font-weight: 800; text-decoration: none;
-    display: flex; align-items: center; justify-content: center; transition: .2s ease; z-index: 3;
-  }
-  .close-btn:hover { background: rgba(0,0,0,0.1); }
-
   @media (max-width: 1040px) {
     .shell { grid-template-columns: 1fr; }
     .brand-side { padding: 40px 24px 26px; }
@@ -153,8 +145,6 @@
 </style>
 </head>
 <body>
-  <a href="index.html" class="close-btn">✕</a>
-
   <main class="shell">
     <section class="brand-side">
       <div>
