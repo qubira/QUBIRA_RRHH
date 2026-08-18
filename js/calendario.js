@@ -64,11 +64,9 @@ function renderPage() {
 
   c.innerHTML = `
     <div class="toolbar">
-      <div class="toolbar__filters" style="flex-wrap:wrap;">
-        <div style="display:flex;gap:6px;">
-          <button type="button" class="btn ${_mode==='area' ? 'btn-primary' : 'btn-secondary'} cal-tab" data-mode="area" style="padding:8px 14px;">Calendario — RR.HH.</button>
-          <button type="button" class="btn ${_mode==='mine' ? 'btn-primary' : 'btn-secondary'} cal-tab" data-mode="mine" style="padding:8px 14px;">Mi agenda</button>
-        </div>
+      <div class="cal-tabs">
+        <button type="button" class="cal-tab ${_mode==='area' ? 'active' : ''}" data-mode="area">Calendario — RR.HH.</button>
+        <button type="button" class="cal-tab ${_mode==='mine' ? 'active' : ''}" data-mode="mine">Mi agenda</button>
       </div>
       <button class="btn btn-primary" id="cal-add-btn">${icon('plus')} Agregar reunión</button>
     </div>

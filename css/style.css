@@ -465,6 +465,18 @@ body {
   align-items: center;
 }
 
+.cal-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); }
+.cal-tab {
+  background: none; border: none; cursor: pointer;
+  padding: 10px 16px; font-size: 13.5px; font-weight: 500;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color .2s, border-color .2s;
+}
+.cal-tab:hover { color: var(--text); }
+.cal-tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+
 .search-box {
   position: relative;
   display: flex;
