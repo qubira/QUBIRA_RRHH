@@ -2,6 +2,31 @@ import { Store } from './storage.js';
 import { openModal, closeModal, confirmDialog, toast } from './ui.js';
 import { formatDate, formatBytes, fullName, initials, icon, escapeHtml } from './utils.js';
 
+const PREVIEWABLE_IMAGE = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+
+function previewDocument(url, filename) {
+  const ext = (filename || '').split('.').pop()?.toLowerCase();
+  const isImage = PREVIEWABLE_IMAGE.includes(ext);
+  const isPdf = ext === 'pdf';
+  const bodyHtml = isImage
+    ? `<div style="text-align:center;"><img src="${url}" style="max-width:100%;max-height:70vh;object-fit:contain;"></div>`
+    : isPdf
+      ? `<iframe src="${url}" style="width:100%;height:70vh;border:0;"></iframe>`
+      : `<div style="text-align:center;padding:40px 0;color:var(--text-muted);">
+           ${icon('file-text')}
+           <p style="margin-top:12px;">Vista previa no disponible para este tipo de archivo.</p>
+         </div>`;
+  openModal({
+    title: escapeHtml(filename || 'Vista previa'),
+    size: 'lg',
+    bodyHtml,
+    footerHtml: `
+      <a class="btn btn-secondary" href="${url}" target="_blank">Descargar</a>
+      <button class="btn btn-primary" data-close>Cerrar</button>
+    `,
+  });
+}
+
 let state = { search: '', categoria: '', employeeId: '' };
 
 const CATEGORIAS = ['DNI', 'CV', 'Título', 'Certificado', 'Contrato Firmado', 'Otro'];
@@ -96,6 +121,16 @@ function renderTable() {
 
   wrap.querySelectorAll('[data-action="delete"]').forEach(btn =>
     btn.addEventListener('click', () => handleDelete(btn.dataset.id)));
+
+  wrap.querySelectorAll('[data-action="view"]').forEach(btn =>
+    btn.addEventListener('click', async () => {
+      try {
+        const url = await Store.getDocumentFileUrl(btn.dataset.id);
+        previewDocument(url, btn.dataset.name);
+      } catch (err) {
+        toast(err.message || 'No se pudo abrir el archivo.', 'error');
+      }
+    }));
 }
 
 function rowHtml(d) {
@@ -117,6 +152,7 @@ function rowHtml(d) {
       <td>${formatDate(d.fechaSubida)}</td>
       <td>
         <div class="table-actions">
+          ${d.filePath ? `<button class="btn btn-ghost btn-sm" data-action="view" data-id="${d.id}" data-name="${escapeHtml(d.nombreArchivo)}" title="Ver">${icon('eye')}</button>` : ''}
           <button class="btn btn-ghost btn-sm" data-action="delete" data-id="${d.id}" title="Eliminar">${icon('trash')}</button>
         </div>
       </td>
@@ -145,7 +181,6 @@ function openDocumentForm() {
         <div class="field">
           <label>Archivo *</label>
           <input type="file" name="archivo" required>
-          <div class="cell-sub" style="margin-top:6px;">Se guarda el nombre y tamaño del archivo (sin backend de almacenamiento configurado).</div>
         </div>
         <div class="field">
           <label>Notas</label>
@@ -169,11 +204,9 @@ function openDocumentForm() {
       await Store.addDocument({
         employeeId: fd.get('employeeId'),
         categoria: fd.get('categoria'),
-        nombreArchivo: file.name,
-        tamano: file.size,
         fechaSubida: new Date().toISOString().slice(0, 10),
         notas: fd.get('notas') || '',
-      });
+      }, file);
       toast('Documento subido correctamente.', 'success');
       closeModal();
       renderTable();

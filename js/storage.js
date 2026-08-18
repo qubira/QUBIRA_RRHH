@@ -13,7 +13,8 @@ const QR_API_BASE = (location.hostname === 'localhost' || location.hostname === 
 function qrToken() { return localStorage.getItem('rrhh_token') || null; }
 
 async function qrFetch(path, opts = {}) {
-  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+  const isFormData = opts.body instanceof FormData;
+  const headers = { ...(isFormData ? {} : { 'Content-Type': 'application/json' }), ...(opts.headers || {}) };
   const token = qrToken();
   if (token) headers.Authorization = 'Bearer ' + token;
 
@@ -196,14 +197,26 @@ export const Store = {
   // Documents
   getDocuments: () => db.documents,
   getDocumentsByEmployee: (employeeId) => db.documents.filter(d => d.employeeId === employeeId),
-  addDocument: async (doc) => {
-    const res = await qrFetch('/api/rrhh/documentos', { method: 'POST', body: JSON.stringify(doc) });
+  addDocument: async (doc, file) => {
+    let body;
+    if (file) {
+      body = new FormData();
+      Object.entries(doc).forEach(([k, v]) => { if (v !== undefined && v !== null) body.append(k, v); });
+      body.append('archivo', file);
+    } else {
+      body = JSON.stringify(doc);
+    }
+    const res = await qrFetch('/api/rrhh/documentos', { method: 'POST', body });
     db.documents.push(res.data);
     return res.data;
   },
   deleteDocument: async (id) => {
     await qrFetch(`/api/rrhh/documentos/${id}`, { method: 'DELETE' });
     db.documents = db.documents.filter(d => d.id !== id);
+  },
+  getDocumentFileUrl: async (id) => {
+    const res = await qrFetch(`/api/rrhh/documentos/${id}/file`);
+    return res.url;
   },
 
   // Job Postings (Reclutamiento)
