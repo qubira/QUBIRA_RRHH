@@ -1,4 +1,5 @@
 import { Store } from './storage.js';
+import { renderCalendario } from './calendario.js';
 import { renderDashboard } from './dashboard.js';
 import { renderEmployees } from './employees.js';
 import { renderContracts } from './contracts.js';
@@ -14,6 +15,7 @@ import { contractStatus } from './utils.js';
 
 const VIEWS = {
   dashboard: { render: renderDashboard, title: 'Dashboard', subtitle: 'Resumen general de Recursos Humanos' },
+  calendario: { render: renderCalendario, title: 'Calendario', subtitle: 'Reuniones de RR. HH. e interconexión con otras áreas' },
   employees: { render: renderEmployees, title: 'Empleados', subtitle: 'Gestión de datos del personal' },
   contracts: { render: renderContracts, title: 'Contratos', subtitle: 'Administración de contratos laborales' },
   documents: { render: renderDocuments, title: 'Documentos', subtitle: 'Archivos y documentación del personal' },

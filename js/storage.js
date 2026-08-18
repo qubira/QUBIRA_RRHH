@@ -63,6 +63,23 @@ export const Store = {
   getAccounts: async () => (await qrFetch('/api/usuarios')).usuarios,
   getRoles: async () => (await qrFetch('/api/rrhh/roles')).data,
 
+  // Calendario Corporativo — fuente central de reuniones compartida entre
+  // RR.HH., ADG, TI y Soporte (API/src/routes/calendar.js).
+  getMeetings: (params = {}) => {
+    const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '')).toString();
+    return qrFetch('/api/calendar/meetings' + (qs ? '?' + qs : ''));
+  },
+  getMeeting: (id) => qrFetch(`/api/calendar/meetings/${id}`),
+  checkAvailability: (payload) => qrFetch('/api/calendar/check-availability', { method: 'POST', body: JSON.stringify(payload) }),
+  addMeeting: (payload) => qrFetch('/api/calendar/meetings', { method: 'POST', body: JSON.stringify(payload) }),
+  updateMeeting: (id, payload) => qrFetch(`/api/calendar/meetings/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  cancelMeeting: (id) => qrFetch(`/api/calendar/meetings/${id}/cancel`, { method: 'POST' }),
+  deleteMeeting: (id) => qrFetch(`/api/calendar/meetings/${id}`, { method: 'DELETE' }),
+  searchDirectory: (params = {}) => {
+    const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '')).toString();
+    return qrFetch('/api/calendar/directory' + (qs ? '?' + qs : ''));
+  },
+
   // Departments
   getDepartments: () => db.departments,
   getDepartment: (id) => db.departments.find(d => d.id === id),
