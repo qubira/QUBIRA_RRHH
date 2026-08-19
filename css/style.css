@@ -204,6 +204,11 @@ body {
   border-color: rgba(239, 68, 68, 0.35);
   color: #fca5a5;
 }
+.sidebar__switch-btn:hover {
+  background: rgba(79, 70, 229, 0.18) !important;
+  border-color: rgba(129, 140, 248, 0.4) !important;
+  color: #fff !important;
+}
 
 .avatar {
   width: 36px;

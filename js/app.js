@@ -124,6 +124,11 @@ async function logout() {
   window.location.href = 'login.html';
 }
 
+const CENTRAL_MODULO_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? 'http://localhost:5515/modulo.html'
+  : 'https://qubira-login.vercel.app/modulo.html';
+function switchModule() { window.location.href = CENTRAL_MODULO_URL; }
+
 function showBootError() {
   const main = document.querySelector('.main');
   if (main) {
@@ -160,6 +165,7 @@ document.addEventListener('data:changed', updateBadges);
 
   renderSession();
   document.getElementById('logout-btn')?.addEventListener('click', logout);
+  document.getElementById('switch-module-btn')?.addEventListener('click', switchModule);
   try {
     const user = JSON.parse(localStorage.getItem('rrhh_user') || 'null');
     const navAuditoria = document.getElementById('nav-auditoria');
