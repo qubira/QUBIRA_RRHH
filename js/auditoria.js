@@ -124,14 +124,34 @@ function renderTable() {
     </div>`;
 }
 
+function changeValueText(v) {
+  if (v === null || v === undefined) return '—';
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+
+function changesHtml(changes) {
+  if (!changes || typeof changes !== 'object') return '';
+  const entries = Object.entries(changes);
+  if (!entries.length) return '';
+  return `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">
+    ${entries.map(([k, v]) => `<span style="display:inline-flex;gap:4px;padding:2px 6px;border-radius:4px;background:var(--bg,#f9fafb);border:1px solid var(--border);font-size:11px;color:var(--text-muted)">
+      <strong style="color:var(--text)">${escapeHtml(k)}:</strong> ${escapeHtml(changeValueText(v))}
+    </span>`).join('')}
+  </div>`;
+}
+
 function rowHtml(r) {
   const path = r.full_path || r.path;
   return `
   <tr>
-    <td class="cell-sub">${fmtDateTimeSec(r.created_at)}</td>
-    <td class="cell-main">${escapeHtml(r.user_name || r.username || '—')}</td>
-    <td class="cell-sub">${escapeHtml(r.area || '—')}</td>
-    <td><span class="tag">${escapeHtml(ACTION_LABEL[r.action_type] || r.action_type)}</span></td>
-    <td class="cell-sub" title="${escapeHtml(path)}">${escapeHtml(r.description)} · ${escapeHtml(r.method)} ${escapeHtml(path)}</td>
+    <td class="cell-sub" style="vertical-align:top">${fmtDateTimeSec(r.created_at)}</td>
+    <td class="cell-main" style="vertical-align:top">${escapeHtml(r.user_name || r.username || '—')}</td>
+    <td class="cell-sub" style="vertical-align:top">${escapeHtml(r.area || '—')}</td>
+    <td style="vertical-align:top"><span class="tag">${escapeHtml(ACTION_LABEL[r.action_type] || r.action_type)}</span></td>
+    <td class="cell-sub" style="vertical-align:top">
+      <span title="${escapeHtml(path)}">${escapeHtml(r.description)} · ${escapeHtml(r.method)} ${escapeHtml(path)}</span>
+      ${changesHtml(r.changes)}
+    </td>
   </tr>`;
 }
