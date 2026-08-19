@@ -80,6 +80,13 @@ export const Store = {
     return qrFetch('/api/calendar/directory' + (qs ? '?' + qs : ''));
   },
 
+  // Auditoría corporativa (API/src/routes/audit.js) — solo cargos
+  // Supervisor/Coordinador/Gerente o nivel_acceso>=100 pueden consultarla.
+  getAuditLogs: (params = {}) => {
+    const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '')).toString();
+    return qrFetch('/api/audit/logs' + (qs ? '?' + qs : ''));
+  },
+
   // Departments
   getDepartments: () => db.departments,
   getDepartment: (id) => db.departments.find(d => d.id === id),

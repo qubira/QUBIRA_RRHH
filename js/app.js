@@ -1,5 +1,6 @@
 import { Store } from './storage.js';
 import { renderCalendario } from './calendario.js';
+import { renderAuditoria } from './auditoria.js';
 import { renderDashboard } from './dashboard.js';
 import { renderEmployees } from './employees.js';
 import { renderContracts } from './contracts.js';
@@ -25,8 +26,16 @@ const VIEWS = {
   development: { render: renderDevelopment, title: 'Capacitación y Desarrollo', subtitle: 'Formación del personal y evaluaciones de desempeño' },
   climate: { render: renderClimate, title: 'Clima Laboral', subtitle: 'Encuestas de clima y gestión de conflictos' },
   accounts: { render: renderAccounts, title: 'Cuentas de usuario', subtitle: 'Cuentas de acceso al sistema, roles y permisos' },
+  auditoria: { render: renderAuditoria, title: 'Auditoría', subtitle: 'Registro de movimientos del sistema' },
   settings: { render: renderSettings, title: 'Configuración', subtitle: 'Listas de opciones usadas en los formularios' },
 };
+
+const QUALIFYING_AUDIT_CARGOS = ['SUPERVISOR', 'COORDINADOR', 'GERENTE'];
+function canViewAudit(user) {
+  if (!user) return false;
+  if ((user.nivel_acceso || 0) >= 100) return true;
+  return QUALIFYING_AUDIT_CARGOS.includes(String(user.cargo || '').toUpperCase());
+}
 
 let currentView = 'dashboard';
 
@@ -138,6 +147,11 @@ document.addEventListener('data:changed', updateBadges);
 
   renderSession();
   document.getElementById('logout-btn')?.addEventListener('click', logout);
+  try {
+    const user = JSON.parse(localStorage.getItem('rrhh_user') || 'null');
+    const navAuditoria = document.getElementById('nav-auditoria');
+    if (navAuditoria) navAuditoria.style.display = canViewAudit(user) ? '' : 'none';
+  } catch (_) { /* si el user guardado esta corrupto, se deja oculto */ }
 
   try {
     await Store.bootstrap();
