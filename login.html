@@ -3,321 +3,121 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QUBIRA RRHH | Acceso</title>
+<title>QUBIRA RRHH | Verificando sesión</title>
 <link rel="icon" href="https://raw.githubusercontent.com/qubira/IMAGENES/main/logo2.png" type="image/png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --sidebar-bg: #111827;
-    --primary: #4f46e5;
-    --primary-2: #818cf8;
-    --primary-dark: #4338ca;
-    --bg: #f3f4f6;
-    --card-bg: #ffffff;
-    --border: #e5e7eb;
-    --text: #111827;
-    --text-muted: #6b7280;
-    --success: #059669;
-    --danger: #dc2626;
-    --shadow-md: 0 10px 25px -5px rgba(0,0,0,.08), 0 4px 6px -4px rgba(0,0,0,.05);
+    --sidebar-bg: #111827; --primary: #4f46e5; --primary-2: #818cf8;
+    --bg: #f3f4f6; --card-bg: #ffffff; --border: #e5e7eb; --text: #111827; --text-muted: #6b7280;
+    --danger: #dc2626; --shadow-md: 0 10px 25px -5px rgba(0,0,0,.08), 0 4px 6px -4px rgba(0,0,0,.05);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { min-height: 100%; font-family: 'Inter', 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
-  body { display: grid; place-items: center; min-height: 100dvh; padding: clamp(12px, 2vw, 22px); }
-
-  .shell {
-    width: min(1180px, 100%);
-    min-height: min(700px, calc(100dvh - 44px));
-    max-height: calc(100dvh - 44px);
-    display: grid;
-    grid-template-columns: 1.05fr 0.95fr;
-    border-radius: 28px;
-    overflow: hidden;
-    box-shadow: var(--shadow-md);
-    border: 1px solid var(--border);
+  body { display: grid; place-items: center; min-height: 100dvh; padding: 20px; }
+  .card {
+    width: min(420px, 100%); background: var(--card-bg); border: 1px solid var(--border); border-radius: 20px;
+    box-shadow: var(--shadow-md); padding: 40px 32px; text-align: center;
   }
-
-  .brand-side {
-    position: relative;
-    padding: clamp(32px, 5vh, 64px) clamp(24px, 4vw, 52px);
-    display: flex; flex-direction: column; justify-content: space-between;
-    overflow: hidden;
-    background:
-      radial-gradient(circle at 20% 20%, rgba(129,140,248,0.22), transparent 24%),
-      radial-gradient(circle at 80% 75%, rgba(79,70,229,0.28), transparent 30%),
-      linear-gradient(160deg, #111827, #1f2937);
-    color: #fff;
+  .logo { width: 52px; height: 52px; object-fit: contain; border-radius: 12px; background: var(--sidebar-bg); padding: 8px; margin-bottom: 18px; }
+  h1 { font-size: 17px; font-weight: 800; margin-bottom: 8px; }
+  p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+  .spinner {
+    width: 30px; height: 30px; border-radius: 50%; border: 3px solid var(--border);
+    border-top-color: var(--primary); animation: spin .8s linear infinite; margin: 18px auto 0;
   }
-  .brand-top { display: flex; align-items: center; gap: 14px; animation: enterUp .8s ease both; }
-  .brand-logo { width: 56px; height: 56px; object-fit: contain; border-radius: 14px; background: rgba(255,255,255,0.1); padding: 9px; }
-  .brand-name { display: flex; flex-direction: column; gap: 4px; }
-  .brand-name strong { font-size: 20px; letter-spacing: .1em; font-weight: 800; color: #fff; }
-  .brand-name span { font-size: 11px; letter-spacing: .2em; color: var(--primary-2); text-transform: uppercase; }
-
-  .hero { max-width: 520px; padding: 22px 0 0; }
-  .eyebrow {
-    display: inline-flex; align-items: center; gap: 10px;
-    padding: 9px 15px; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06);
-    color: rgba(255,255,255,0.9); border-radius: 999px; font-size: 12.5px; font-weight: 600;
-    margin-bottom: 24px; animation: enterUp .9s ease .08s both;
-  }
-  .eyebrow::before { content:''; width:8px; height:8px; border-radius:50%; background: var(--primary-2); box-shadow: 0 0 0 6px rgba(129,140,248,.18); }
-  .hero h1 { font-size: clamp(26px, 3vw, 46px); line-height: 1.05; font-weight: 800; letter-spacing: -.02em; margin-bottom: 16px; animation: enterUp .95s ease .16s both; color: #fff; }
-  .hero p { max-width: 460px; font-size: 15px; line-height: 1.75; color: rgba(255,255,255,0.68); animation: enterUp 1s ease .24s both; }
-
-  .hero-cards { margin-top: 30px; display: flex; gap: 14px; flex-wrap: wrap; animation: enterUp 1.05s ease .32s both; }
-  .mini-card { min-width: 170px; flex: 1 1 170px; padding: 16px 16px 14px; border-radius: 16px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); }
-  .mini-card strong { display: block; font-size: 23px; font-weight: 800; margin-bottom: 6px; color: #fff; }
-  .mini-card span { font-size: 12.5px; color: rgba(255,255,255,0.65); line-height: 1.5; }
-
-  .brand-footer {
-    display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap;
-    color: rgba(255,255,255,0.5); font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase;
-    animation: enterUp 1.1s ease .4s both;
-  }
-
-  .form-side { position: relative; display: flex; align-items: center; justify-content: center; padding: clamp(24px, 3vw, 44px); background: var(--card-bg); }
-  .form-card { width: min(410px, 100%); animation: scaleIn .9s ease .18s both; }
-  .form-mobile-brand { display: none; align-items: center; gap: 12px; margin-bottom: 26px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
-  .form-mobile-logo { width: 40px; height: 40px; object-fit: contain; border-radius: 10px; background: var(--sidebar-bg); padding: 5px; }
-  .form-mobile-brand strong { display: block; font-size: .92rem; font-weight: 800; letter-spacing: .1em; color: var(--primary); }
-  .form-mobile-brand span { font-size: .65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .1em; }
-
-  .form-card h2 { font-size: 32px; line-height: 1; font-weight: 800; margin-bottom: 9px; letter-spacing: -.02em; color: var(--text); }
-  .form-card p { font-size: 13.5px; line-height: 1.7; color: var(--text-muted); margin-bottom: 24px; }
-
-  .field { position: relative; margin-bottom: 15px; }
-  .field input {
-    width: 100%; height: 54px; border: 1px solid var(--border); outline: none;
-    border-radius: 12px; padding: 0 16px 0 48px; background: #f9fafb; color: var(--text);
-    font-size: 14.5px; font-weight: 500; transition: .2s ease;
-  }
-  .field input::placeholder { color: #9ca3af; }
-  .field input:focus { background: #fff; border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-light, #eef2ff); }
-  .field svg { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; fill: #9ca3af; pointer-events: none; }
-  .toggle {
-    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-    height: 32px; padding: 0 11px; border: none; border-radius: 9px;
-    background: #eef2ff; color: var(--primary); font-size: 11.5px; font-weight: 800;
-    letter-spacing: .08em; cursor: pointer; transition: .2s ease;
-  }
-  .toggle:hover { background: #e0e7ff; }
-
-  .actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 6px 0 22px; }
-  .secure-badge { display: inline-flex; align-items: center; gap: 9px; color: var(--text-muted); font-size: 12.5px; font-weight: 600; }
-  .secure-badge::before { content:''; width:9px; height:9px; border-radius:50%; background: var(--success); box-shadow: 0 0 0 6px rgba(5,150,105,.12); }
-
-  .submit {
-    width: 100%; height: 54px; border: none; border-radius: 12px;
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error { color: var(--danger); font-weight: 600; margin-top: 10px; }
+  a.btn {
+    display: inline-block; margin-top: 18px; padding: 11px 20px; border-radius: 10px;
     background: linear-gradient(135deg, var(--primary), var(--primary-2)); color: #fff;
-    font-size: 14.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
-    cursor: pointer; box-shadow: 0 16px 28px rgba(79,70,229,0.28); transition: .25s ease;
-  }
-  .submit:hover { transform: translateY(-2px); box-shadow: 0 20px 34px rgba(79,70,229,0.34); }
-  .submit:active { transform: translateY(0); }
-  .submit:disabled { opacity: .6; cursor: not-allowed; transform: none; }
-
-  .foot-note { margin-top: 16px; color: var(--text-muted); font-size: 11.5px; line-height: 1.7; text-align: center; }
-
-  .message { min-height: 18px; margin-top: 12px; text-align: center; font-size: 12.5px; font-weight: 600; }
-  .message.success { color: var(--success); }
-  .message.error { color: var(--danger); animation: shake .35s ease; }
-  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
-  @keyframes enterUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes scaleIn { from{opacity:0;transform:scale(.96) translateY(16px)} to{opacity:1;transform:scale(1) translateY(0)} }
-
-  @media (max-width: 1040px) {
-    .shell { grid-template-columns: 1fr; }
-    .brand-side { padding: 40px 24px 26px; }
-    .hero { max-width: none; }
-    .form-side { padding: 22px 16px 30px; }
-  }
-  @media (max-width: 640px) {
-    body { padding: 0; align-items: stretch; }
-    .shell { grid-template-columns: 1fr; max-height: none; min-height: 100dvh; height: auto; border-radius: 0; overflow: auto; }
-    .brand-side { display: none; }
-    .form-side { min-height: 100dvh; padding: 46px 22px 36px; display: flex; align-items: center; justify-content: center; }
-    .form-card { width: 100%; max-width: 420px; }
-    .form-card h2 { font-size: 1.7rem; }
-    .actions { flex-direction: column; align-items: flex-start; }
-    .form-mobile-brand { display: flex; }
+    font-size: 13px; font-weight: 700; text-decoration: none;
   }
 </style>
 </head>
 <body>
-  <main class="shell">
-    <section class="brand-side">
-      <div>
-        <div class="brand-top">
-          <img class="brand-logo" src="https://raw.githubusercontent.com/qubira/IMAGENES/main/logo2.png" alt="QUBIRA logo">
-          <div class="brand-name">
-            <strong>QUBIRA</strong>
-            <span>Recursos Humanos</span>
-          </div>
-        </div>
-
-        <div class="hero">
-          <div class="eyebrow">Acceso de personal RRHH</div>
-          <h1>Panel de gestión de personal.</h1>
-          <p>
-            Inicia sesión con tu cuenta corporativa de Qubira para administrar
-            empleados, contratos, nómina y todo el ciclo de Recursos Humanos.
-          </p>
-
-          <div class="hero-cards">
-            <div class="mini-card">
-              <strong>Personal</strong>
-              <span>Empleados, departamentos y contratos en un solo lugar.</span>
-            </div>
-            <div class="mini-card">
-              <strong>Seguro</strong>
-              <span>Acceso protegido por sesión con tu cuenta corporativa.</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="brand-footer">
-        <span>Plataforma interna</span>
-        <span>Qubira Systems</span>
-        <span>RRHH Access</span>
-      </div>
-    </section>
-
-    <section class="form-side">
-      <div class="form-card">
-        <div class="form-mobile-brand">
-          <img src="https://raw.githubusercontent.com/qubira/IMAGENES/main/logo2.png" alt="QUBIRA" class="form-mobile-logo">
-          <div>
-            <strong>QUBIRA</strong>
-            <span>Recursos Humanos</span>
-          </div>
-        </div>
-
-        <h2>Ingresar</h2>
-        <p>Accede con tu cuenta corporativa para continuar.</p>
-
-        <form id="loginForm" novalidate autocomplete="off">
-          <div class="field">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 12c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5Zm0 2c-3.87 0-7 2.24-7 5v1h14v-1c0-2.76-3.13-5-7-5Z"/>
-            </svg>
-            <input type="text" id="user" placeholder="Usuario corporativo" autocomplete="off">
-          </div>
-
-          <div class="field">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M17 8h-1V6a4 4 0 1 0-8 0v2H7a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2Zm-6 8.73V18h2v-1.27a2 2 0 1 0-2 0ZM10 8V6a2 2 0 1 1 4 0v2h-4Z"/>
-            </svg>
-            <input type="password" id="password" placeholder="Contraseña" autocomplete="new-password">
-            <button type="button" class="toggle" id="togglePassword">VER</button>
-          </div>
-
-          <div class="actions">
-            <div class="secure-badge">Sesión protegida</div>
-          </div>
-
-          <button class="submit" type="submit" id="submitBtn">Ingresar</button>
-          <div id="message" class="message"></div>
-        </form>
-
-        <div class="foot-note">
-          Acceso exclusivo para personal autorizado de Qubira.
-        </div>
-      </div>
-    </section>
-  </main>
+  <div class="card">
+    <img class="logo" src="https://raw.githubusercontent.com/qubira/IMAGENES/main/logo2.png" alt="QUBIRA">
+    <h1 id="title">Verificando tu sesión…</h1>
+    <p id="subtitle">Un momento por favor.</p>
+    <div class="spinner" id="spinner"></div>
+  </div>
 
 <script>
 'use strict';
+
+/* Esta página YA NO es un formulario de login — el único login de
+   credenciales del sistema vive en LOGIN/login.html (acceso central).
+   Esta página solo: (1) recibe un código de traspaso de un solo uso
+   cuando viene de login/modulo.html, o (2) si ya hay una sesión local
+   válida entra directo, o (3) si no hay ninguna de las dos, redirige
+   al login central. */
 
 const QR_API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
   ? 'http://localhost:4000'
   : 'https://api-qubira.onrender.com';
 
-function goBack() { window.location.href = 'index.html'; }
+const CENTRAL_LOGIN_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? 'http://localhost:5515/login.html'
+  : 'https://qubira-login.vercel.app/login.html';
 
-/* Si ya hay un token, se verifica con el servidor antes de saltar de vuelta
-   (evita loops con tokens viejos/inválidos, igual que en Soporte). */
-(function checkExistingSession() {
-  const existingToken = localStorage.getItem('rrhh_token');
-  if (!existingToken) return;
+function goToPanel() { window.location.href = 'index.html'; }
+function goToCentralLogin() { window.location.href = CENTRAL_LOGIN_URL; }
+function showError(msg) {
+  document.getElementById('title').textContent = 'No se pudo iniciar sesión';
+  document.getElementById('subtitle').innerHTML = msg + '<br><a class="btn" href="' + CENTRAL_LOGIN_URL + '">Ir al acceso central</a>';
+  document.getElementById('spinner').style.display = 'none';
+}
 
-  fetch(`${QR_API_BASE}/api/auth/me`, { headers: { Authorization: 'Bearer ' + existingToken } })
-    .then((res) => {
-      if (res.ok) {
-        goBack();
-      } else {
-        localStorage.removeItem('rrhh_token');
-        localStorage.removeItem('rrhh_user');
-      }
-    })
-    .catch(() => { /* sin conexión — deja el formulario disponible */ });
-})();
-
-const form      = document.getElementById('loginForm');
-const userInput = document.getElementById('user');
-const passInput = document.getElementById('password');
-const toggle    = document.getElementById('togglePassword');
-const message   = document.getElementById('message');
-const submitBtn = document.getElementById('submitBtn');
-
-toggle.addEventListener('click', () => {
-  const hidden = passInput.type === 'password';
-  passInput.type = hidden ? 'text' : 'password';
-  toggle.textContent = hidden ? 'OCULTAR' : 'VER';
-});
-
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-
-  const username = userInput.value.trim();
-  const password = passInput.value.trim();
-
-  if (!username || !password) {
-    showMessage('Completa usuario y contraseña.', false);
-    return;
-  }
-
-  setLoading(true);
-  showMessage('Verificando credenciales...', null);
-
+async function exchangeHandoff(code) {
   try {
-    const res = await fetch(`${QR_API_BASE}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
+    const res = await fetch(`${QR_API_BASE}/api/auth/exchange`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
     });
-
     const data = await res.json();
+    if (!res.ok || !data.ok) { showError(data.error || 'El enlace de acceso venció o ya se usó.'); return; }
 
-    if (!res.ok || !data.ok) {
-      showMessage(data.error || 'Credenciales incorrectas.', false);
-      setLoading(false);
+    if (!(data.user.authorized_modules || []).includes('RRHH')) {
+      showError('Tu cuenta no tiene autorización para RR. HH.');
       return;
     }
 
     localStorage.setItem('rrhh_token', data.token);
     localStorage.setItem('rrhh_user', JSON.stringify(data.user));
-
-    showMessage('¡Acceso concedido! Redirigiendo...', true);
-    setTimeout(goBack, 500);
-
+    history.replaceState(null, '', location.pathname);
+    goToPanel();
   } catch (err) {
-    console.error('[LOGIN RRHH] Error de red:', err);
-    showMessage('No se pudo conectar con la API. ¿Está corriendo el backend?', false);
-    setLoading(false);
+    showError('No se pudo conectar con la API.');
   }
-});
+}
 
-function showMessage(text, success) {
-  message.textContent = text;
-  message.className = 'message' + (success === true ? ' success' : success === false ? ' error' : '');
+async function checkExistingSession() {
+  const existingToken = localStorage.getItem('rrhh_token');
+  if (!existingToken) { goToCentralLogin(); return; }
+
+  try {
+    const res = await fetch(`${QR_API_BASE}/api/auth/me`, { headers: { Authorization: 'Bearer ' + existingToken } });
+    if (!res.ok) { localStorage.removeItem('rrhh_token'); localStorage.removeItem('rrhh_user'); goToCentralLogin(); return; }
+    const data = await res.json();
+    if (!(data.user.authorized_modules || []).includes('RRHH')) {
+      localStorage.removeItem('rrhh_token'); localStorage.removeItem('rrhh_user');
+      showError('Tu cuenta no tiene autorización para RR. HH.');
+      return;
+    }
+    localStorage.setItem('rrhh_user', JSON.stringify(data.user));
+    goToPanel();
+  } catch (err) {
+    showError('No se pudo conectar con la API.');
+  }
 }
-function setLoading(loading) {
-  submitBtn.disabled = loading;
-  submitBtn.textContent = loading ? 'Verificando...' : 'Ingresar';
-}
+
+(function init() {
+  const params = new URLSearchParams(location.search);
+  const code = params.get('handoff');
+  if (code) { exchangeHandoff(code); return; }
+  checkExistingSession();
+})();
 </script>
 </body>
 </html>

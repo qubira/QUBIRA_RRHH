@@ -139,11 +139,24 @@ function showBootError() {
 document.addEventListener('data:changed', updateBadges);
 
 (async function init() {
-  /* Gate de acceso: sin sesión, no se carga nada del panel */
+  /* Gate de acceso: sin sesión, no se carga nada del panel. login.html
+     ya validó el traspaso/token contra el backend y guardó
+     authorized_modules — acá solo se confirma que incluya RRHH antes
+     de renderizar nada (si no, un 403 del backend igual lo bloquearía,
+     pero esto da un mensaje claro en vez de "no se pudo conectar"). */
   if (!localStorage.getItem('rrhh_token')) {
     window.location.href = 'login.html';
     return;
   }
+  try {
+    const storedUser = JSON.parse(localStorage.getItem('rrhh_user') || 'null');
+    if (!(storedUser?.authorized_modules || []).includes('RRHH')) {
+      localStorage.removeItem('rrhh_token');
+      localStorage.removeItem('rrhh_user');
+      window.location.href = 'login.html';
+      return;
+    }
+  } catch (_) { window.location.href = 'login.html'; return; }
 
   renderSession();
   document.getElementById('logout-btn')?.addEventListener('click', logout);
