@@ -87,42 +87,6 @@ export const Store = {
     return qrFetch('/api/audit/logs' + (qs ? '?' + qs : ''));
   },
 
-  // Proyecto — RR. HH. solicita proyectos de mejora de herramientas a
-  // ADG, reutilizando el mismo backend de TI/ADG (API/src/routes/ti.js,
-  // schema ti.projects). RR. HH. solo ve sus propias solicitudes (el
-  // backend ya filtra por origin_area) y, mientras estén pending_approval
-  // u observed, es la única que puede seguir editándolas.
-  getProjects: (params = {}) => {
-    const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '')).toString();
-    return qrFetch('/api/ti/projects' + (qs ? '?' + qs : ''));
-  },
-  getProject: (id) => qrFetch(`/api/ti/projects/${id}`),
-  getProjectFamilies: () => qrFetch('/api/ti/projects/families'),
-  createProject: (formData) => qrFetch('/api/ti/projects', { method: 'POST', body: formData }),
-  updateProject: (id, formData) => qrFetch(`/api/ti/projects/${id}`, { method: 'PUT', body: formData }),
-  resubmitProject: (id) => qrFetch(`/api/ti/projects/${id}/resubmit`, { method: 'POST' }),
-  getProjectUsers: () => qrFetch('/api/ti/users'),
-  getProjectDocTypes: () => qrFetch('/api/ti/document-types'),
-  addProjectDocType: (label) => qrFetch('/api/ti/document-types', { method: 'POST', body: JSON.stringify({ label }) }),
-
-  getProjectRequirements: (projectId) => qrFetch(`/api/ti/requirements?project_id=${projectId}`),
-  addProjectRequirement: (payload) => qrFetch('/api/ti/requirements', { method: 'POST', body: JSON.stringify(payload) }),
-  updateProjectRequirement: (id, payload) => qrFetch(`/api/ti/requirements/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
-  deleteProjectRequirement: (id) => qrFetch(`/api/ti/requirements/${id}`, { method: 'DELETE' }),
-
-  getProjectContracts: (projectId) => qrFetch(`/api/ti/contracts?project_id=${projectId}`),
-  getProjectDocuments: (projectId) => qrFetch(`/api/ti/documents?project_id=${projectId}`),
-  getProjectDocumentFileUrl: (id) => qrFetch(`/api/ti/documents/${id}/file`),
-  getProjectWhatsapp: (projectId) => qrFetch(`/api/ti/whatsapp?project_id=${projectId}`),
-  getProjectEmails: (projectId) => qrFetch(`/api/ti/emails?project_id=${projectId}`),
-  getProjectActivities: (projectId) => qrFetch(`/api/ti/activities?project_id=${projectId}&limit=200`),
-  getProjectScrumRoles: (projectId) => qrFetch(`/api/ti/scrum-roles?project_id=${projectId}`),
-  getProjectTechnologies: (projectId) => qrFetch(`/api/ti/technologies?project_id=${projectId}`),
-  getTechnologyCatalog: (category) => qrFetch(`/api/ti/technology-catalog?category=${category}`),
-  addProjectTechnology: (payload) => qrFetch('/api/ti/technologies', { method: 'POST', body: payload instanceof FormData ? payload : JSON.stringify(payload) }),
-  updateProjectTechnology: (id, name) => qrFetch(`/api/ti/technologies/${id}`, { method: 'PUT', body: JSON.stringify({ name }) }),
-  deleteProjectTechnology: (id) => qrFetch(`/api/ti/technologies/${id}`, { method: 'DELETE' }),
-
   // Departments
   getDepartments: () => db.departments,
   getDepartment: (id) => db.departments.find(d => d.id === id),
