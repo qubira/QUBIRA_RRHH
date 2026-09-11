@@ -184,25 +184,28 @@ document.addEventListener('data:changed', updateBadges);
   renderView('dashboard');
 })();
 
-// ─── Cierre de sesión por inactividad (2 minutos sin interacción) ─────────────
-(function setupInactivityLogout(onLogout) {
+// ─── Cierre de sesión por inactividad + detección de sesión reemplazada ──────
+/* Basado en Date.now() y un solo "tick" cada 1s (no en cadenas de
+   setTimeout) para que funcione igual aunque el navegador retrase los
+   timers de una pestaña en segundo plano — al volver a mirarla (o en
+   el próximo tick, atrasado o no) el cálculo de tiempo real transcurrido
+   sigue siendo correcto. Además hace un "heartbeat" periódico contra el
+   servidor: si esta cuenta inició sesión en otro dispositivo, el
+   servidor invalida esta sesión y lo detecta acá aunque no haya pasado
+   ninguna inactividad, mostrando un aviso en vez de un cierre mudo. */
+(function setupSessionGuard(onLogout) {
   const WARN_AFTER_MS = 90 * 1000;
   const LOGOUT_AFTER_MS = 120 * 1000;
-  let warnTimer = null;
-  let logoutTimer = null;
-  let countdownInterval = null;
+  const HEARTBEAT_MS = 20 * 1000;
+
+  let lastActivity = Date.now();
   let overlay = null;
+  let countdownInterval = null;
+  let lastHeartbeatAt = 0;
 
   function hideWarning() {
     if (overlay) { overlay.remove(); overlay = null; }
     clearInterval(countdownInterval);
-  }
-
-  function doLogout() {
-    hideWarning();
-    clearTimeout(warnTimer);
-    clearTimeout(logoutTimer);
-    onLogout();
   }
 
   function showWarning() {
@@ -219,7 +222,7 @@ document.addEventListener('data:changed', updateBadges);
         <button id="inactivity-stay-btn" style="width:100%;padding:12px;border:none;border-radius:10px;background:#4f46e5;color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">Seguir conectado</button>
       </div>`;
     document.body.appendChild(overlay);
-    document.getElementById('inactivity-stay-btn').addEventListener('click', resetTimers);
+    document.getElementById('inactivity-stay-btn').addEventListener('click', () => { lastActivity = Date.now(); hideWarning(); });
     countdownInterval = setInterval(() => {
       secondsLeft -= 1;
       const el = document.getElementById('inactivity-countdown');
@@ -228,29 +231,33 @@ document.addEventListener('data:changed', updateBadges);
     }, 1000);
   }
 
-  function resetTimers() {
-    hideWarning();
-    clearTimeout(warnTimer);
-    clearTimeout(logoutTimer);
-    if (!localStorage.getItem('rrhh_token')) return; // sin sesión activa, no hay nada que expirar
-    warnTimer = setTimeout(showWarning, WARN_AFTER_MS);
-    logoutTimer = setTimeout(doLogout, LOGOUT_AFTER_MS);
-  }
-
-  let lastActivity = 0;
   function handleActivity() {
-    if (!localStorage.getItem('rrhh_token')) return;
-    const now = Date.now();
-    if (now - lastActivity < 500) return;
-    lastActivity = now;
-    resetTimers();
+    lastActivity = Date.now();
+    hideWarning();
   }
-
   ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'].forEach(evt =>
     document.addEventListener(evt, handleActivity, { passive: true }));
 
-  /* Arranca el conteo apenas carga la página, no recién en la primera
-     interacción — si no, alguien que deja la pestaña abierta sin
-     tocar nada JAMÁS se desloguea (nunca dispara un evento). */
-  resetTimers();
+  /* Store.ping ya usa qrFetch, que sabe distinguir "sesión reemplazada"
+     (redirige a la alerta con el IP del nuevo dispositivo) de un 401
+     normal (manda al login) — este heartbeat solo dispara la llamada
+     para que ese chequeo ocurra. */
+  async function heartbeat() {
+    if (!localStorage.getItem('rrhh_token')) return;
+    try { await Store.ping(); } catch (_) { /* ya lo maneja storage.js */ }
+  }
+
+  function tick() {
+    if (!localStorage.getItem('rrhh_token')) return;
+    const elapsed = Date.now() - lastActivity;
+    if (elapsed >= LOGOUT_AFTER_MS) { hideWarning(); onLogout(); return; }
+    if (elapsed >= WARN_AFTER_MS) showWarning();
+
+    const now = Date.now();
+    if (now - lastHeartbeatAt >= HEARTBEAT_MS) { lastHeartbeatAt = now; heartbeat(); }
+  }
+
+  setInterval(tick, 1000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
+  tick();
 })(logout);

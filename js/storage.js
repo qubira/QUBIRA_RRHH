@@ -9,6 +9,9 @@
 const QR_API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
   ? 'http://localhost:4000'
   : 'https://api-qubira.onrender.com';
+const QR_ALERT_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? 'http://localhost:5515/session-alert.html'
+  : 'https://qubira-login.vercel.app/session-alert.html';
 
 function qrToken() { return localStorage.getItem('rrhh_token') || null; }
 
@@ -21,9 +24,15 @@ async function qrFetch(path, opts = {}) {
   const res = await fetch(QR_API_BASE + path, { ...opts, headers });
 
   if (res.status === 401) {
+    const data401 = await res.json().catch(() => ({}));
+    const cachedUsername = JSON.parse(localStorage.getItem('rrhh_user') || 'null')?.username;
     localStorage.removeItem('rrhh_token');
     localStorage.removeItem('rrhh_user');
-    window.location.href = 'login.html';
+    if (data401?.code === 'SESSION_REPLACED') {
+      window.location.href = `${QR_ALERT_URL}?username=${encodeURIComponent(cachedUsername || '')}&ip=${encodeURIComponent(data401.ip || '')}`;
+    } else {
+      window.location.href = 'login.html';
+    }
     throw new Error('SESSION_EXPIRED');
   }
 
@@ -56,6 +65,10 @@ async function refresh() {
 export const Store = {
   bootstrap,
   refresh,
+
+  // Heartbeat de sesión — sin datos propios, solo para que qrFetch
+  // detecte a tiempo si esta cuenta inició sesión en otro dispositivo.
+  ping: () => qrFetch('/api/auth/me'),
 
   // Cuentas del sistema (tabla `usuarios`, compartida por todo Qubira) —
   // solo lectura desde RRHH: se crean al dar de alta un empleado y la
