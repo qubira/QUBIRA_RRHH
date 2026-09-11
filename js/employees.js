@@ -4,6 +4,7 @@ import {
   formatDate, formatDateTime, fullName, initials, icon, escapeHtml, getClientIp, HIJOS_OPTIONS,
   EMPLOYEE_STATUS_META, CONTRACT_STATUS_META, contractStatus,
 } from './utils.js';
+import { openFaceEnrollModal, getFaceStatus, removeFaceEnrollment } from './faceCapture.js';
 
 let state = { search: '', departmentId: '', estado: '' };
 let accountRolesByUsername = {};
@@ -409,6 +410,15 @@ async function openEmployeeForm(id) {
             `)}
           `}
 
+        ${editing?.usuario ? `
+          <div class="subsection-title">${icon('camera')} Reconocimiento facial</div>
+          <p id="face-status-line" style="font-size:12px;color:var(--text-muted);margin:2px 0 10px;">Consultando estado...</p>
+          <div style="display:flex;gap:8px;margin-bottom:4px">
+            <button type="button" class="btn btn-secondary btn-sm" id="face-capture-btn">${icon('camera')} Capturar rostro</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="face-remove-btn" style="display:none;color:var(--danger)">${icon('trash')} Quitar rostro</button>
+          </div>
+        ` : ''}
+
         <div class="subsection-title">${icon('user-check')} Contacto de referencia</div>
         ${inlineField('Nombre de contacto de referencia', true, `<input type="text" name="contactoReferenciaNombre" required value="${escapeHtml(editing?.contactoReferenciaNombre || '')}">`)}
         ${inlineField('Primer número móvil de referencia', true, `<input type="text" name="contactoReferenciaTel1" required value="${escapeHtml(editing?.contactoReferenciaTel1 || '')}">`)}
@@ -444,6 +454,58 @@ function toggleConditionalField(form, { triggerSelector, fieldId, fieldName, sho
   };
   trigger.addEventListener('change', apply);
   apply();
+}
+
+/* El overlay de modales de este panel no apila (openModal reemplaza todo
+   el contenido) — por eso capturar o quitar el rostro cierra el modal de
+   edición primero y lo vuelve a abrir (con datos frescos) al terminar, en
+   vez de anidar un modal dentro de otro. */
+function wireFaceSection(form, employeeId, username, label) {
+  const statusLine = form.querySelector('#face-status-line');
+  const captureBtn = form.querySelector('#face-capture-btn');
+  const removeBtn = form.querySelector('#face-remove-btn');
+
+  async function refreshStatus() {
+    try {
+      const status = await getFaceStatus(username);
+      if (status.enrolled) {
+        statusLine.innerHTML = `${icon('check-circle')} Rostro registrado (${status.samples} capturas). Ya puede ingresar con reconocimiento facial.`;
+        statusLine.style.color = 'var(--success)';
+        captureBtn.innerHTML = `${icon('camera')} Volver a capturar`;
+        removeBtn.style.display = '';
+      } else {
+        statusLine.textContent = 'Este colaborador todavía no tiene el rostro registrado.';
+        statusLine.style.color = 'var(--text-muted)';
+        captureBtn.innerHTML = `${icon('camera')} Capturar rostro`;
+        removeBtn.style.display = 'none';
+      }
+    } catch (err) {
+      statusLine.textContent = 'No se pudo consultar el estado del reconocimiento facial.';
+      statusLine.style.color = 'var(--danger)';
+    }
+  }
+
+  captureBtn.addEventListener('click', async () => {
+    closeModal();
+    await openFaceEnrollModal({ username, label });
+    openEmployeeForm(employeeId);
+  });
+
+  removeBtn.addEventListener('click', async () => {
+    closeModal();
+    const ok = await confirmDialog(`¿Quitar el reconocimiento facial de ${escapeHtml(label)}? Ya no podrá ingresar con su rostro hasta volver a registrarlo.`, { confirmLabel: 'Quitar', danger: true });
+    if (ok) {
+      try {
+        await removeFaceEnrollment(username);
+        toast('Reconocimiento facial eliminado.', 'success');
+      } catch (err) {
+        toast(err.message || 'No se pudo quitar el reconocimiento facial.', 'error');
+      }
+    }
+    openEmployeeForm(employeeId);
+  });
+
+  refreshStatus();
 }
 
 function wireEmployeeForm(modal, editing) {
@@ -482,6 +544,8 @@ function wireEmployeeForm(modal, editing) {
     unlockBtn.addEventListener('click', doUnlock);
     unlockInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doUnlock(); } });
   }
+
+  if (editing?.usuario) wireFaceSection(form, editing.id, editing.usuario, fullName(editing));
 
   const photoBox = form.querySelector('#photo-upload-box');
   const photoInput = form.querySelector('#photo-input');
@@ -619,16 +683,20 @@ function wireEmployeeForm(modal, editing) {
     const meta = { usuario: sessionUser ? `${sessionUser.nombre} ${sessionUser.apellidos || ''}`.trim() : 'Administrador', ip };
 
     try {
+      let created = null;
       if (editing) {
         await Store.updateEmployee(editing.id, data, meta);
         toast('Empleado actualizado correctamente.', 'success');
       } else {
-        await Store.addEmployee({ ...data, estado: data.estado || 'activo' }, meta);
+        created = await Store.addEmployee({ ...data, estado: data.estado || 'activo' }, meta);
         toast('Empleado creado correctamente.', 'success');
       }
       closeModal();
       renderTable();
       document.dispatchEvent(new CustomEvent('data:changed'));
+      if (created?.usuario) {
+        await openFaceEnrollModal({ username: created.usuario, label: fullName(created) });
+      }
     } catch (err) {
       toast(err.message || 'No se pudo guardar el empleado.', 'error');
     } finally {
