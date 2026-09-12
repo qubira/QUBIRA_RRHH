@@ -513,6 +513,19 @@ input, select, textarea {
   transition: border-color .15s, box-shadow .15s;
 }
 
+/* input/select/textarea son inline-block por defecto y no llenan su
+   .field contenedor solos (sobre todo notorio en <textarea>, que
+   además trae su propio ancho intrínseco por el atributo "cols") —
+   sin esto queda un hueco vacío al lado de cada campo en filas de dos
+   columnas. Los checkboxes/radios no se ven afectados: no viven
+   sueltos dentro de un .field en ningún formulario de la app (el único
+   caso, en contracts.js, ya trae su propio width:auto en línea). */
+.field input:not([type="checkbox"]):not([type="radio"]),
+.field select,
+.field textarea {
+  width: 100%;
+}
+
 input:focus, select:focus, textarea:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--primary-light);

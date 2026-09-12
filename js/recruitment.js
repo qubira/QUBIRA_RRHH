@@ -115,8 +115,8 @@ function renderPostings() {
 
 function questionRowHtml(pregunta, index) {
   return `
-    <div class="field-row" data-question-row="${index}" style="align-items:center">
-      <div class="field" style="flex:1">
+    <div data-question-row="${index}" style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div class="field" style="flex:1;margin-bottom:0">
         <input type="text" data-question-input value="${escapeHtml(pregunta)}" placeholder="Ej. ¿Cuántos años de experiencia tienes?">
       </div>
       <button type="button" class="btn btn-ghost btn-sm" data-action="remove-question" data-index="${index}" title="Quitar">${icon('trash')}</button>
