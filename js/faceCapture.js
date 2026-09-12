@@ -57,7 +57,7 @@ function loadFaceModels() {
   return faceModelsPromise;
 }
 
-const SAMPLES_NEEDED = 3;
+const SAMPLES_NEEDED = 5;
 
 /* Abre el modal de captura para un colaborador puntual. Resuelve `true`
    si el rostro quedó guardado, `false` si se canceló. */
@@ -75,7 +75,9 @@ export function openFaceEnrollModal({ username, label }) {
       bodyHtml: `
         <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:14px">
           Capturando el rostro de <strong>${escapeHtml(label)}</strong>. Pídele que mire directo a
-          la cámara, con buena luz, y gire un poco la cara entre cada captura (${SAMPLES_NEEDED} en total).
+          la cámara, con buena luz, y varíe un poco el ángulo y el gesto entre cada captura
+          (ej. gira levemente, inclina la cabeza, sonríe) — mientras más variado, mejor lo va a
+          reconocer después (${SAMPLES_NEEDED} en total).
         </p>
         <div style="position:relative;width:220px;height:220px;margin:0 auto 14px;border-radius:50%;overflow:hidden;background:#111827">
           <video id="face-enroll-video" autoplay muted playsinline style="width:100%;height:100%;object-fit:cover;transform:scaleX(-1)"></video>
@@ -126,7 +128,7 @@ export function openFaceEnrollModal({ username, label }) {
     async function detectLoop() {
       if (!loopActive) return;
       try {
-        const options = new window.faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 });
+        const options = new window.faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 });
         const result = await window.faceapi.detectSingleFace(videoEl, options).withFaceLandmarks().withFaceDescriptor();
         if (result) {
           currentDescriptor = result.descriptor;
