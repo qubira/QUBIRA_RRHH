@@ -112,8 +112,20 @@ function renderPostings() {
     btn.addEventListener('click', () => handleDeletePosting(btn.dataset.id)));
 }
 
+function questionRowHtml(pregunta, index) {
+  return `
+    <div class="field-row" data-question-row="${index}" style="align-items:center">
+      <div class="field" style="flex:1">
+        <input type="text" data-question-input value="${escapeHtml(pregunta)}" placeholder="Ej. ¿Cuántos años de experiencia tienes?">
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" data-action="remove-question" data-index="${index}" title="Quitar">${icon('trash')}</button>
+    </div>
+  `;
+}
+
 function openPostingForm(id) {
   const editing = id ? Store.getJobPosting(id) : null;
+  const questions = editing ? Store.getJobQuestions(editing.id).map(q => q.pregunta) : [];
   const modal = openModal({
     title: editing ? 'Editar oferta de empleo' : 'Nueva oferta de empleo',
     size: 'lg',
@@ -170,6 +182,14 @@ function openPostingForm(id) {
             </select>
           </div>
         </div>
+        <div class="field">
+          <label>Preguntas de filtro (bolsa de trabajo pública)</label>
+          <p style="font-size:12px;color:var(--text-muted);margin:2px 0 8px">
+            El postulante debe responder todas antes de poder enviar su CV.
+          </p>
+          <div id="questions-list"></div>
+          <button type="button" class="btn btn-secondary btn-sm" id="add-question" style="margin-top:6px">${icon('plus')} Agregar pregunta</button>
+        </div>
       </form>
     `,
     footerHtml: `
@@ -177,6 +197,19 @@ function openPostingForm(id) {
       <button class="btn btn-primary" id="save-posting">${editing ? 'Guardar cambios' : 'Publicar oferta'}</button>
     `,
   });
+
+  const questionsListEl = modal.querySelector('#questions-list');
+  function renderQuestions() {
+    questionsListEl.innerHTML = questions.length
+      ? questions.map((q, i) => questionRowHtml(q, i)).join('')
+      : `<p style="font-size:12.5px;color:var(--text-muted)">Sin preguntas todavía — cualquiera puede postular sin filtro.</p>`;
+    questionsListEl.querySelectorAll('[data-action="remove-question"]').forEach(btn =>
+      btn.addEventListener('click', () => { questions.splice(Number(btn.dataset.index), 1); renderQuestions(); }));
+    questionsListEl.querySelectorAll('[data-question-input]').forEach((input, i) =>
+      input.addEventListener('input', () => { questions[i] = input.value; }));
+  }
+  renderQuestions();
+  modal.querySelector('#add-question').addEventListener('click', () => { questions.push(''); renderQuestions(); });
 
   modal.querySelector('#save-posting').addEventListener('click', async () => {
     const form = modal.querySelector('#posting-form');
@@ -193,14 +226,17 @@ function openPostingForm(id) {
       fechaPublicacion: fd.get('fechaPublicacion'),
       estado: fd.get('estado'),
     };
+    const cleanQuestions = questions.map(q => q.trim()).filter(Boolean);
     try {
+      let posting;
       if (editing) {
-        await Store.updateJobPosting(editing.id, data);
+        posting = await Store.updateJobPosting(editing.id, data);
         toast('Oferta actualizada correctamente.', 'success');
       } else {
-        await Store.addJobPosting(data);
+        posting = await Store.addJobPosting(data);
         toast('Oferta publicada correctamente.', 'success');
       }
+      await Store.savePostingQuestions(posting.id, cleanQuestions);
       closeModal();
       renderPostings();
       document.dispatchEvent(new CustomEvent('data:changed'));
@@ -242,7 +278,9 @@ function renderCandidates() {
                   <div class="kanban-card">
                     <div class="kanban-card__name">${escapeHtml(fullName(c))}</div>
                     <div class="kanban-card__job">${job ? escapeHtml(job.titulo) : 'Sin oferta asociada'}</div>
+                    ${c.origen === 'publico' ? `<span class="tag" style="margin-bottom:6px">${icon('upload')} Postuló por la web</span>` : ''}
                     ${starsHtml(c.calificacion)}
+                    ${c.cvUrl ? `<button type="button" class="btn btn-ghost btn-sm" data-action="view-cv" data-id="${c.id}" style="margin-top:4px">${icon('file-text')} Ver CV</button>` : ''}
                     <div class="kanban-card__footer">
                       <select data-action="change-stage" data-id="${c.id}">
                         ${CANDIDATE_STAGES.map(s => `<option value="${s}" ${s === stage ? 'selected' : ''}>${s}</option>`).join('')}
@@ -277,6 +315,32 @@ function renderCandidates() {
     btn.addEventListener('click', () => openCandidateForm(btn.dataset.id)));
   wrap.querySelectorAll('[data-action="delete-candidate"]').forEach(btn =>
     btn.addEventListener('click', () => handleDeleteCandidate(btn.dataset.id)));
+  wrap.querySelectorAll('[data-action="view-cv"]').forEach(btn =>
+    btn.addEventListener('click', async () => {
+      try {
+        const url = await Store.getCandidateCvUrl(btn.dataset.id);
+        window.open(url, '_blank', 'noopener');
+      } catch (err) {
+        toast(err.message || 'No se pudo abrir el CV.', 'error');
+      }
+    }));
+}
+
+function candidateAnswersHtml(candidate) {
+  if (!candidate || candidate.origen !== 'publico') return '';
+  const answers = Store.getCandidateAnswers(candidate.id);
+  return `
+    <div class="field">
+      <label>Respuestas del postulante</label>
+      ${answers.length === 0
+        ? '<p style="font-size:12.5px;color:var(--text-muted)">Esta oferta no tenía preguntas de filtro.</p>'
+        : `<div class="mini-list">${answers.map(a => `
+            <div class="mini-row" style="flex-direction:column;align-items:flex-start;gap:2px">
+              <strong style="font-size:12.5px">${escapeHtml(a.preguntaTexto)}</strong>
+              <span style="font-size:12.5px;color:var(--text-muted)">${escapeHtml(a.respuesta)}</span>
+            </div>`).join('')}</div>`}
+    </div>
+  `;
 }
 
 function openCandidateForm(id) {
@@ -286,6 +350,7 @@ function openCandidateForm(id) {
     size: 'lg',
     bodyHtml: `
       <form id="candidate-form">
+        ${candidateAnswersHtml(editing)}
         <div class="field-row">
           <div class="field">
             <label>Nombre *</label>

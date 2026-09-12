@@ -47,6 +47,7 @@ let db = {
   jobPostings: [], candidates: [], payrollRecords: [], vacations: [],
   trainings: [], trainingEnrollments: [], performanceReviews: [],
   climateSurveys: [], climateSurveyResponses: [], conflictCases: [],
+  jobQuestions: [], candidateAnswers: [],
   catalogs: {}, auditLog: [], privileged: false,
 };
 
@@ -274,12 +275,33 @@ export const Store = {
     await qrFetch(`/api/rrhh/vacantes/${id}`, { method: 'DELETE' });
     db.jobPostings = db.jobPostings.filter(j => j.id !== id);
     db.candidates = db.candidates.filter(c => c.jobPostingId !== id);
+    db.jobQuestions = db.jobQuestions.filter(q => q.vacanteId !== id);
+  },
+
+  // Preguntas de filtro por oferta — las responde el postulante en la
+  // bolsa de trabajo pública (API/src/routes/jobs-public.js). Se
+  // reemplazan todas juntas en cada guardado, igual que las capturas
+  // de rostro en faceCapture.js.
+  getJobQuestions: (jobPostingId) => db.jobQuestions.filter(q => q.vacanteId === jobPostingId),
+  savePostingQuestions: async (jobPostingId, preguntas) => {
+    await qrFetch(`/api/rrhh/vacantes/${jobPostingId}/preguntas`, {
+      method: 'PUT', body: JSON.stringify({ preguntas }),
+    });
+    db.jobQuestions = db.jobQuestions.filter(q => q.vacanteId !== jobPostingId);
+    preguntas.forEach((pregunta, orden) => {
+      db.jobQuestions.push({ id: `local-${jobPostingId}-${orden}`, vacanteId: jobPostingId, pregunta, orden });
+    });
   },
 
   // Candidates (Reclutamiento)
   getCandidates: () => db.candidates,
   getCandidate: (id) => db.candidates.find(c => c.id === id),
   getCandidatesByJobPosting: (jobPostingId) => db.candidates.filter(c => c.jobPostingId === jobPostingId),
+  getCandidateAnswers: (candidatoId) => db.candidateAnswers.filter(a => a.candidatoId === candidatoId),
+  getCandidateCvUrl: async (id) => {
+    const res = await qrFetch(`/api/rrhh/candidatos/${id}/cv`);
+    return res.url;
+  },
   addCandidate: async (c) => {
     const res = await qrFetch('/api/rrhh/candidatos', { method: 'POST', body: JSON.stringify(c) });
     db.candidates.push(res.data);
@@ -294,6 +316,7 @@ export const Store = {
   deleteCandidate: async (id) => {
     await qrFetch(`/api/rrhh/candidatos/${id}`, { method: 'DELETE' });
     db.candidates = db.candidates.filter(c => c.id !== id);
+    db.candidateAnswers = db.candidateAnswers.filter(a => a.candidatoId !== id);
   },
 
   // Payroll Records (Nómina)
