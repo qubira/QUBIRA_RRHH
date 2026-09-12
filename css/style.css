@@ -536,6 +536,22 @@ label {
   gap: 14px;
 }
 
+.field-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin: 22px 0 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.field-section-title:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
 /* ---------- Buttons ---------- */
 .btn {
   display: inline-flex;

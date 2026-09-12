@@ -7,6 +7,7 @@ import {
 
 const MODALIDADES = ['Presencial', 'Remoto', 'Híbrido'];
 const TIPOS_CONTRATO = ['Indefinido', 'Plazo Fijo', 'Temporal', 'Pasantía'];
+const NIVELES_EXPERIENCIA = ['Sin experiencia', 'Practicante', 'Junior', 'Semi Senior', 'Senior'];
 
 let activeTab = 'postings';
 
@@ -135,6 +136,8 @@ function openPostingForm(id) {
           <label>Título del puesto *</label>
           <input type="text" name="titulo" required value="${escapeHtml(editing?.titulo || '')}">
         </div>
+
+        <div class="field-section-title">Clasificación</div>
         <div class="field-row">
           <div class="field">
             <label>Departamento *</label>
@@ -162,6 +165,34 @@ function openPostingForm(id) {
             </select>
           </div>
         </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Nivel de experiencia</label>
+            <select name="nivelExperiencia">
+              ${NIVELES_EXPERIENCIA.map(n => `<option value="${n}" ${editing?.nivelExperiencia === n ? 'selected' : ''}>${n}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field">
+            <label>Estado</label>
+            <select name="estado">
+              ${Object.keys(JOB_POSTING_STATUS_META).map(s => `<option value="${s}" ${editing?.estado === s ? 'selected' : ''}>${s}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+
+        <div class="field-section-title">Compensación (opcional)</div>
+        <div class="field-row">
+          <div class="field">
+            <label>Salario mínimo</label>
+            <input type="number" name="salarioMin" min="0" step="0.01" placeholder="Ej. 1500" value="${editing?.salarioMin ?? ''}">
+          </div>
+          <div class="field">
+            <label>Salario máximo</label>
+            <input type="number" name="salarioMax" min="0" step="0.01" placeholder="Ej. 2000" value="${editing?.salarioMax ?? ''}">
+          </div>
+        </div>
+
+        <div class="field-section-title">Descripción</div>
         <div class="field">
           <label>Descripción</label>
           <textarea name="descripcion" rows="2">${escapeHtml(editing?.descripcion || '')}</textarea>
@@ -172,18 +203,29 @@ function openPostingForm(id) {
         </div>
         <div class="field-row">
           <div class="field">
+            <label>Beneficios</label>
+            <textarea name="beneficios" rows="2" placeholder="Uno por línea">${escapeHtml(editing?.beneficios || '')}</textarea>
+          </div>
+          <div class="field">
+            <label>Habilidades clave</label>
+            <textarea name="habilidades" rows="2" placeholder="Una por línea">${escapeHtml(editing?.habilidades || '')}</textarea>
+          </div>
+        </div>
+
+        <div class="field-section-title">Publicación</div>
+        <div class="field-row">
+          <div class="field">
             <label>Fecha de publicación</label>
             <input type="date" name="fechaPublicacion" value="${editing?.fechaPublicacion || new Date().toISOString().slice(0, 10)}">
           </div>
           <div class="field">
-            <label>Estado</label>
-            <select name="estado">
-              ${Object.keys(JOB_POSTING_STATUS_META).map(s => `<option value="${s}" ${editing?.estado === s ? 'selected' : ''}>${s}</option>`).join('')}
-            </select>
+            <label>Fecha límite de postulación</label>
+            <input type="date" name="fechaLimite" value="${editing?.fechaLimite || ''}">
           </div>
         </div>
+
+        <div class="field-section-title">Preguntas de filtro (bolsa de trabajo pública)</div>
         <div class="field">
-          <label>Preguntas de filtro (bolsa de trabajo pública)</label>
           <p style="font-size:12px;color:var(--text-muted);margin:2px 0 8px">
             El postulante debe responder todas antes de poder enviar su CV.
           </p>
@@ -221,9 +263,15 @@ function openPostingForm(id) {
       vacantes: Number(fd.get('vacantes')),
       modalidad: fd.get('modalidad'),
       tipoContrato: fd.get('tipoContrato'),
+      nivelExperiencia: fd.get('nivelExperiencia') || '',
+      salarioMin: fd.get('salarioMin') ? Number(fd.get('salarioMin')) : null,
+      salarioMax: fd.get('salarioMax') ? Number(fd.get('salarioMax')) : null,
       descripcion: fd.get('descripcion') || '',
       requisitos: fd.get('requisitos') || '',
+      beneficios: fd.get('beneficios') || '',
+      habilidades: fd.get('habilidades') || '',
       fechaPublicacion: fd.get('fechaPublicacion'),
+      fechaLimite: fd.get('fechaLimite') || null,
       estado: fd.get('estado'),
     };
     const cleanQuestions = questions.map(q => q.trim()).filter(Boolean);
