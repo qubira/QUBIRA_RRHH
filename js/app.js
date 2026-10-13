@@ -5,6 +5,7 @@ import { renderDashboard } from './dashboard.js';
 import { renderEmployees } from './employees.js';
 import { renderContracts } from './contracts.js';
 import { renderDocuments } from './documents.js';
+import { renderConstancias } from './constancias.js';
 import { renderDepartments } from './departments.js';
 import { renderRecruitment } from './recruitment.js';
 import { renderPayroll } from './payroll.js';
@@ -20,6 +21,7 @@ const VIEWS = {
   employees: { render: renderEmployees, title: 'Empleados', subtitle: 'Gestión de datos del personal' },
   contracts: { render: renderContracts, title: 'Contratos', subtitle: 'Administración de contratos laborales' },
   documents: { render: renderDocuments, title: 'Documentos', subtitle: 'Archivos y documentación del personal' },
+  constancias: { render: renderConstancias, title: 'Constancias de Trabajo', subtitle: 'Emisión y verificación de constancias laborales' },
   departments: { render: renderDepartments, title: 'Departamentos', subtitle: 'Áreas y estructura organizacional' },
   recruitment: { render: renderRecruitment, title: 'Reclutamiento y Selección', subtitle: 'Ofertas de empleo y seguimiento de candidatos' },
   payroll: { render: renderPayroll, title: 'Administración y Nómina', subtitle: 'Liquidaciones, vacaciones y licencias' },

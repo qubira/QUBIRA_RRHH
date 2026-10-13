@@ -257,6 +257,54 @@ export const Store = {
     return res.url;
   },
 
+  // Constancias de trabajo — emisión, historial y configuración de firma.
+  // No se cachean en `db`: se piden al servidor cada vez que se abre la
+  // página (lista potencialmente larga, y rara vez se consulta seguido).
+  listConstancias: async () => (await qrFetch('/api/rrhh/constancias')).data,
+  createConstancia: async (payload) => (await qrFetch('/api/rrhh/constancias', {
+    method: 'POST', body: JSON.stringify(payload),
+  })).data,
+  getConstanciaConfig: async () => (await qrFetch('/api/rrhh/constancia-config')).data,
+  uploadConstanciaFirma: async (file) => {
+    const token = qrToken();
+    const fd = new FormData();
+    fd.append('firma', file);
+    const res = await fetch(QR_API_BASE + '/api/rrhh/constancia-config', {
+      method: 'PUT',
+      headers: token ? { Authorization: 'Bearer ' + token } : {},
+      body: fd,
+    });
+    if (res.status === 401) {
+      localStorage.removeItem('rrhh_token');
+      localStorage.removeItem('rrhh_user');
+      window.location.href = 'login.html';
+      throw new Error('SESSION_EXPIRED');
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('Error ' + res.status));
+    return data.data;
+  },
+  // Descarga el PDF (generado al vuelo) como blob autenticado — no es una
+  // URL pública fija, requiere el Bearer token de la sesión.
+  downloadConstanciaPdfUrl: async (id) => {
+    const token = qrToken();
+    const res = await fetch(QR_API_BASE + `/api/rrhh/constancias/${id}/pdf`, {
+      headers: token ? { Authorization: 'Bearer ' + token } : {},
+    });
+    if (res.status === 401) {
+      localStorage.removeItem('rrhh_token');
+      localStorage.removeItem('rrhh_user');
+      window.location.href = 'login.html';
+      throw new Error('SESSION_EXPIRED');
+    }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'No se pudo generar el PDF');
+    }
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  },
+
   // Job Postings (Reclutamiento)
   getJobPostings: () => db.jobPostings,
   getJobPosting: (id) => db.jobPostings.find(j => j.id === id),
