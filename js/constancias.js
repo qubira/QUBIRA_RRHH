@@ -129,6 +129,8 @@ function renderTable() {
 
   wrap.querySelectorAll('[data-action="download"]').forEach(btn =>
     btn.addEventListener('click', () => handleDownload(btn.dataset.id, btn.dataset.numero)));
+  wrap.querySelectorAll('[data-action="edit"]').forEach(btn =>
+    btn.addEventListener('click', () => openEditForm(list.find(c => c.id === btn.dataset.id))));
 }
 
 function rowHtml(c) {
@@ -145,6 +147,7 @@ function rowHtml(c) {
       <td>${formatDate(c.fechaEmision)}</td>
       <td>
         <div class="table-actions">
+          <button class="btn btn-ghost btn-sm" data-action="edit" data-id="${c.id}" title="Editar">${icon('edit')}</button>
           <button class="btn btn-ghost btn-sm" data-action="download" data-id="${c.id}" data-numero="${escapeHtml(c.numero)}" title="Descargar PDF">${icon('file-text')} PDF</button>
         </div>
       </td>
@@ -248,6 +251,83 @@ function openConstanciaForm() {
       await loadList();
     } catch (err) {
       toast(err.message || 'No se pudo emitir la constancia.', 'error');
+    }
+  });
+}
+
+function openEditForm(c) {
+  if (!c) return;
+
+  const modal = openModal({
+    title: `Editar Constancia ${c.numero}`,
+    bodyHtml: `
+      <form id="edit-constancia-form">
+        <div class="field">
+          <label>Nombre completo</label>
+          <input type="text" name="nombreCompleto" value="${escapeHtml(c.nombreCompleto || '')}">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Tratamiento</label>
+            <select name="tratamiento">
+              ${TRATAMIENTOS.map(t => `<option value="${t}" ${c.tratamiento === t ? 'selected' : ''}>${t}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field">
+            <label>Tipo y número de documento</label>
+            <input type="text" name="tipoDocumento" value="${escapeHtml(c.tipoDocumento || '')}" style="margin-bottom:6px;" placeholder="Tipo (ej. DNI)">
+            <input type="text" name="numeroDocumento" value="${escapeHtml(c.numeroDocumento || '')}" placeholder="Número">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Área</label>
+            <input type="text" name="area" value="${escapeHtml(c.area || '')}">
+          </div>
+          <div class="field">
+            <label>Cargo</label>
+            <input type="text" name="cargo" value="${escapeHtml(c.cargo || '')}">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Fecha de inicio</label>
+            <input type="date" name="fechaInicio" value="${/^\d{4}-\d{2}-\d{2}/.test(c.fechaInicio) ? c.fechaInicio : ''}">
+          </div>
+          <div class="field">
+            <label>Fecha de fin</label>
+            <input type="date" name="fechaFin" value="${/^\d{4}-\d{2}-\d{2}/.test(c.fechaFin) ? c.fechaFin : ''}">
+            <p style="color:var(--text-muted);font-size:11px;margin-top:2px;">Déjalo vacío si sigue activo — se mostrará como "Actualidad".</p>
+          </div>
+        </div>
+        <div class="field">
+          <label>Función principal</label>
+          <textarea name="funcionPrincipal" rows="3">${escapeHtml(c.funcionPrincipal || '')}</textarea>
+        </div>
+        <div class="field">
+          <label>Lugar de emisión</label>
+          <input type="text" name="lugar" value="${escapeHtml(c.lugar || '')}">
+        </div>
+        <p style="color:var(--text-muted);font-size:12px;">El N.° de constancia y el código de verificación no cambian al editar.</p>
+      </form>
+    `,
+    footerHtml: `
+      <button class="btn btn-secondary" data-close>Cancelar</button>
+      <button class="btn btn-primary" id="save-edit-constancia">Guardar cambios</button>
+    `,
+  });
+
+  modal.querySelector('#save-edit-constancia').addEventListener('click', async () => {
+    const form = modal.querySelector('#edit-constancia-form');
+    const fd = new FormData(form);
+    const payload = Object.fromEntries(fd.entries());
+    try {
+      await Store.updateConstancia(c.id, payload);
+      toast('Constancia actualizada.', 'success');
+      closeModal();
+      await loadList();
+    } catch (err) {
+      toast(err.message || 'No se pudo actualizar la constancia.', 'error');
     }
   });
 }

@@ -264,6 +264,9 @@ export const Store = {
   createConstancia: async (payload) => (await qrFetch('/api/rrhh/constancias', {
     method: 'POST', body: JSON.stringify(payload),
   })).data,
+  updateConstancia: async (id, payload) => (await qrFetch(`/api/rrhh/constancias/${id}`, {
+    method: 'PUT', body: JSON.stringify(payload),
+  })).data,
   getConstanciaConfig: async () => (await qrFetch('/api/rrhh/constancia-config')).data,
   uploadConstanciaFirma: async (file) => {
     const token = qrToken();
