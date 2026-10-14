@@ -24,9 +24,10 @@ export async function renderConstancias() {
     <div class="card" style="margin-bottom:16px;">
       <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
         <div style="flex:1;min-width:220px;">
-          <strong>Firma / sello para las constancias</strong>
+          <strong>Tu firma personal</strong>
           <p style="color:var(--text-muted);font-size:13px;margin-top:4px;">
-            Esta imagen se incrusta en todos los PDF generados a partir de ahora. No afecta las constancias ya emitidas.
+            Es tuya, no de todo el sistema: se incrusta en las constancias que TÚ emitas a partir de ahora.
+            Cada quien sube la suya; no afecta a otros usuarios ni a lo ya emitido.
           </p>
         </div>
         <img id="firma-preview" src="" alt="Firma" style="height:50px;display:none;border:1px solid var(--border,#e5e7eb);border-radius:6px;padding:4px;background:#fff;">
@@ -207,7 +208,7 @@ function openConstanciaForm() {
           <label>Lugar de emisión</label>
           <input type="text" name="lugar" value="Lima, Perú">
         </div>
-        ${!firmaUrl ? `<p style="color:var(--text-muted);font-size:12px;">No hay una imagen de firma configurada — la constancia se generará solo con el nombre y cargo de quien la emite.</p>` : ''}
+        ${!firmaUrl ? `<p style="color:var(--text-muted);font-size:12px;">No subiste tu firma todavía — la constancia se generará solo con tu nombre y cargo.</p>` : ''}
       </form>
     `,
     footerHtml: `
