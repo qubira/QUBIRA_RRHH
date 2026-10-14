@@ -3,7 +3,7 @@ import { openModal, closeModal, confirmDialog, toast } from './ui.js';
 import { formatDate, icon, escapeHtml } from './utils.js';
 
 const OWN_AREA = 'RRHH';
-const AREAS = [['RRHH','RR. HH.'],['ADG','ADG'],['TI','TI'],['SOPORTE','Soporte']];
+const AREAS = [['RRHH','RR. HH.'],['ADG','ADG'],['TI','OTI'],['SOPORTE','Soporte']];
 const MEETING_TYPES = ['Entrevista','Onboarding','Evaluación','Capacitación','Reunión interna','Reunión con otra área','Reunión con proveedor','Reunión con candidato','Otro'];
 const EXTERNAL_KINDS = [['cliente','Cliente'],['postulante','Postulante'],['proveedor','Proveedor'],['consultor','Consultor'],['otro','Otro']];
 const STATUS_LABEL = { scheduled:'Programada', confirmed:'Confirmada', in_progress:'En curso', completed:'Finalizada', cancelled:'Cancelada' };

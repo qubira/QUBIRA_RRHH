@@ -1,7 +1,7 @@
 import { Store } from './storage.js';
 import { icon, escapeHtml } from './utils.js';
 
-const AREAS = [['RRHH','RR. HH.'],['ADG','ADG'],['TI','TI'],['SOPORTE','Soporte']];
+const AREAS = [['RRHH','RR. HH.'],['ADG','ADG'],['TI','OTI'],['SOPORTE','Soporte']];
 const ACTION_LABEL = { view: 'Consultó', create: 'Creó', update: 'Actualizó', delete: 'Eliminó', login: 'Inició sesión', logout: 'Cerró sesión' };
 
 let _rows = [];
