@@ -197,7 +197,8 @@ function openConstanciaForm() {
           </div>
           <div class="field">
             <label>Fecha de fin</label>
-            <input type="text" name="fechaFin" id="constancia-fecha-fin" placeholder="Actualidad">
+            <input type="date" name="fechaFin" id="constancia-fecha-fin">
+            <p style="color:var(--text-muted);font-size:11px;margin-top:2px;">Déjalo vacío si sigue activo — se mostrará como "Actualidad".</p>
           </div>
         </div>
         <div class="field">
@@ -223,7 +224,7 @@ function openConstanciaForm() {
     const ff = modal.querySelector('#constancia-fecha-fin');
     if (emp) {
       fi.value = emp.fechaIngreso || '';
-      ff.value = emp.estado === 'activo' ? 'Actualidad' : '';
+      ff.value = '';
     }
   });
 
