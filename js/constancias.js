@@ -1,5 +1,5 @@
 import { Store } from './storage.js';
-import { openModal, closeModal, toast } from './ui.js';
+import { openModal, closeModal, confirmDialog, toast } from './ui.js';
 import { formatDate, fullName, initials, icon, escapeHtml } from './utils.js';
 
 const TRATAMIENTOS = ['el Sr.', 'la Sra.', 'la Srta.'];
@@ -131,6 +131,8 @@ function renderTable() {
     btn.addEventListener('click', () => handleDownload(btn.dataset.id, btn.dataset.numero)));
   wrap.querySelectorAll('[data-action="edit"]').forEach(btn =>
     btn.addEventListener('click', () => openEditForm(list.find(c => c.id === btn.dataset.id))));
+  wrap.querySelectorAll('[data-action="delete"]').forEach(btn =>
+    btn.addEventListener('click', () => handleDelete(btn.dataset.id, btn.dataset.numero)));
 }
 
 function rowHtml(c) {
@@ -149,10 +151,25 @@ function rowHtml(c) {
         <div class="table-actions">
           <button class="btn btn-ghost btn-sm" data-action="edit" data-id="${c.id}" title="Editar">${icon('edit')}</button>
           <button class="btn btn-ghost btn-sm" data-action="download" data-id="${c.id}" data-numero="${escapeHtml(c.numero)}" title="Descargar PDF">${icon('file-text')} PDF</button>
+          <button class="btn btn-ghost btn-sm" data-action="delete" data-id="${c.id}" data-numero="${escapeHtml(c.numero)}" title="Eliminar">${icon('trash')}</button>
         </div>
       </td>
     </tr>
   `;
+}
+
+async function handleDelete(id, numero) {
+  const confirmed = await confirmDialog(
+    `Vas a eliminar la constancia ${numero}. El QR y el código de verificación que ya se hayan entregado dejarán de funcionar. Esta acción no se puede deshacer.`
+  );
+  if (!confirmed) return;
+  try {
+    await Store.deleteConstancia(id);
+    toast('Constancia eliminada.', 'success');
+    await loadList();
+  } catch (err) {
+    toast(err.message || 'No se pudo eliminar la constancia.', 'error');
+  }
 }
 
 async function handleDownload(id, numero) {
