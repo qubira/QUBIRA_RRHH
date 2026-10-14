@@ -207,6 +207,7 @@ function openForm(editId) {
             ${MEETING_TYPES.map(t => `<option value="${t}" ${editing?.meeting_type===t?'selected':''}>${t}</option>`).join('')}
           </select>
         </div>
+        <div class="field"><label>Ubicación</label><input name="location" placeholder="Sala de reuniones, dirección, link de videollamada..." value="${escapeHtml(editing?.location || '')}"></div>
         <div class="field"><label>Motivo</label><input name="motivo" value="${escapeHtml(editing?.motivo || '')}"></div>
         <div class="field"><label>Descripción</label><textarea name="description" rows="2">${escapeHtml(editing?.description || '')}</textarea></div>
         <div class="field">
@@ -369,6 +370,7 @@ async function submitForm(modal) {
   const start_time = form.elements.start_time.value;
   const end_time = form.elements.end_time.value;
   const meeting_type = form.elements.meeting_type.value;
+  const location = form.elements.location.value.trim();
   const motivo = form.elements.motivo.value.trim();
   const description = form.elements.description.value.trim();
 
@@ -377,7 +379,7 @@ async function submitForm(modal) {
   if (!_selectedParticipants.length && !_externalParticipants.length) return toast('Selecciona al menos un participante', 'error');
 
   const payload = {
-    title, date, start_time, end_time, meeting_type, motivo, description,
+    title, date, start_time, end_time, meeting_type, location, motivo, description,
     participants: _selectedParticipants.map(p => ({ user_id: p.user_id })),
     external_participants: _externalParticipants,
   };
@@ -428,6 +430,7 @@ function viewMeeting(id) {
         <p><strong>Fecha:</strong> ${formatDate(m.meeting_date)}</p>
         <p><strong>Horario:</strong> ${m.start_time.slice(0,5)} — ${m.end_time.slice(0,5)}</p>
         ${m.meeting_type ? `<p><strong>Tipo:</strong> ${escapeHtml(m.meeting_type)}</p>` : ''}
+        ${m.location ? `<p><strong>Ubicación:</strong> ${escapeHtml(m.location)}</p>` : ''}
         ${m.motivo ? `<p><strong>Motivo:</strong> ${escapeHtml(m.motivo)}</p>` : ''}
         ${m.description ? `<p><strong>Descripción:</strong> ${escapeHtml(m.description)}</p>` : ''}
         <div><strong>Participantes:</strong><ul style="margin:4px 0 0 18px;padding:0;">${participantsHtml || '<li>Sin participantes</li>'}</ul></div>
