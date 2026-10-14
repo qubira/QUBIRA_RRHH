@@ -8,10 +8,9 @@ const MEETING_TYPES = ['Entrevista','Onboarding','Evaluación','Capacitación','
 const EXTERNAL_KINDS = [['cliente','Cliente'],['postulante','Postulante'],['proveedor','Proveedor'],['consultor','Consultor'],['otro','Otro']];
 const STATUS_LABEL = { scheduled:'Programada', confirmed:'Confirmada', in_progress:'En curso', completed:'Finalizada', cancelled:'Cancelada' };
 
-let _mode = 'area';
+let _mode = 'area';               // 'area' | 'mine' | 'week' | 'weekArea'
 let _filters = { area: OWN_AREA, participant: '', type: '', date_from: todayISO(), date_to: '', status: '' };
 let _meetings = [];
-let _formOpen = false;
 let _editingId = null;
 let _conflicts = [];
 let _selectedParticipants = [];
@@ -19,6 +18,10 @@ let _externalParticipants = [];
 let _dirResults = [];
 let _dirDebounce, _filterDebounce;
 let _checkToken = 0;
+let _pendingImage = null;         // url subida en el modal, antes de guardar la reunión
+let _weekOffset = 0;              // semanas respecto a la actual, para la vista semanal
+const WEEK_START_HOUR = 7;
+const WEEK_END_HOUR = 21;
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 function fullName(p) { return [p.nombre, p.apellidos].filter(Boolean).join(' '); }
@@ -26,6 +29,23 @@ function getUser() {
   try { return JSON.parse(localStorage.getItem('rrhh_user')); } catch { return null; }
 }
 function isPrivileged() { return (getUser()?.nivel_acceso || 0) >= 100; }
+
+function isoDate(d) { return d.toISOString().slice(0, 10); }
+function weekBounds(offset) {
+  const now = new Date();
+  const day = now.getDay(); // 0=domingo..6=sábado
+  const diffToMonday = (day === 0 ? -6 : 1 - day);
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  monday.setDate(monday.getDate() + diffToMonday + offset * 7);
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+  return { monday, sunday: days[6], days };
+}
+const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+const MONTH_LABELS = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
 export function renderCalendario() {
   const container = document.getElementById('view-calendario');
@@ -35,20 +55,41 @@ export function renderCalendario() {
 
 async function load() {
   try {
-    const params = { date_from: _filters.date_from || undefined, date_to: _filters.date_to || undefined, status: _filters.status || undefined };
-    if (_mode === 'mine') {
-      params.mine = 'true';
+    let params;
+    if (_mode === 'week' || _mode === 'weekArea') {
+      const { monday, sunday } = weekBounds(_weekOffset);
+      params = { date_from: isoDate(monday), date_to: isoDate(sunday) };
+      if (_mode === 'week') {
+        /* Solo las reuniones propias de quien está logueado — el horario
+           de una misma persona nunca se solapa (ya se valida al crear/
+           editar), así que esta vista nunca va a mostrar bloques
+           superpuestos. */
+        params.mine = 'true';
+      } else {
+        /* Vista semana general: todas las reuniones del área, de
+           cualquier participante — estas sí pueden solaparse entre sí
+           (dos personas distintas con reuniones a la misma hora), así
+           que el render usa un layout de columnas para no superponerlas. */
+        params.area = OWN_AREA;
+      }
     } else {
-      params.area = _filters.area;
+      params = { date_from: _filters.date_from || undefined, date_to: _filters.date_to || undefined, status: _filters.status || undefined };
+      if (_mode === 'mine') {
+        params.mine = 'true';
+      } else {
+        params.area = _filters.area;
+      }
     }
     let meetings = await Store.getMeetings(params);
-    if (_filters.participant) {
-      const q = _filters.participant.toLowerCase();
-      meetings = meetings.filter(m => (m.participants || []).some(p =>
-        (p.user_name || p.external_name || '').toLowerCase().includes(q)));
-    }
-    if (_filters.type) {
-      meetings = meetings.filter(m => (m.meeting_type || '').toLowerCase() === _filters.type.toLowerCase());
+    if (_mode !== 'week' && _mode !== 'weekArea') {
+      if (_filters.participant) {
+        const q = _filters.participant.toLowerCase();
+        meetings = meetings.filter(m => (m.participants || []).some(p =>
+          (p.user_name || p.external_name || '').toLowerCase().includes(q)));
+      }
+      if (_filters.type) {
+        meetings = meetings.filter(m => (m.meeting_type || '').toLowerCase() === _filters.type.toLowerCase());
+      }
     }
     _meetings = meetings;
     renderPage();
@@ -63,39 +104,180 @@ function renderPage() {
   if (!c) return;
 
   c.innerHTML = `
-    <div class="toolbar">
-      <div class="cal-tabs">
-        <button type="button" class="cal-tab ${_mode==='area' ? 'active' : ''}" data-mode="area">Calendario — RR.HH.</button>
-        <button type="button" class="cal-tab ${_mode==='mine' ? 'active' : ''}" data-mode="mine">Mi agenda</button>
-      </div>
-      <button class="btn btn-primary" id="cal-add-btn">${icon('plus')} Agregar reunión</button>
-    </div>
-    <div class="toolbar" style="margin-top:10px;">
-      <div class="toolbar__filters" style="flex-wrap:wrap;">
-        ${_mode === 'area' ? `
-        <select id="f-area">
-          ${AREAS.map(([k,l]) => `<option value="${k}" ${_filters.area===k?'selected':''}>${l}</option>`).join('')}
-          ${isPrivileged() ? `<option value="ALL" ${_filters.area==='ALL'?'selected':''}>Todas las áreas</option>` : ''}
-        </select>` : ''}
-        <div class="search-box">
-          ${icon('search')}
-          <input id="f-participant" placeholder="Buscar participante..." value="${escapeHtml(_filters.participant)}">
+    <div style="position:sticky;top:0;z-index:30;background:var(--bg,#f6f7f9);padding-top:4px;padding-bottom:10px;margin:0 -2px;">
+      <div class="toolbar">
+        <div class="cal-tabs">
+          <button type="button" class="cal-tab ${_mode==='area' ? 'active' : ''}" data-mode="area">Calendario — RR.HH.</button>
+          <button type="button" class="cal-tab ${_mode==='mine' ? 'active' : ''}" data-mode="mine">Mi agenda</button>
+          <button type="button" class="cal-tab ${_mode==='week' ? 'active' : ''}" data-mode="week">Vista semana</button>
+          <button type="button" class="cal-tab ${_mode==='weekArea' ? 'active' : ''}" data-mode="weekArea">Vista semana general</button>
         </div>
-        <select id="f-type">
-          <option value="">Todos los tipos</option>
-          ${MEETING_TYPES.map(t => `<option value="${t}" ${_filters.type===t?'selected':''}>${t}</option>`).join('')}
-        </select>
-        <input type="date" id="f-date-from" value="${_filters.date_from}">
-        <input type="date" id="f-date-to" value="${_filters.date_to}">
-        <select id="f-status">
-          <option value="">Todos los estados</option>
-          ${Object.entries(STATUS_LABEL).map(([k,l]) => `<option value="${k}" ${_filters.status===k?'selected':''}>${l}</option>`).join('')}
-        </select>
+        <button class="btn btn-primary" id="cal-add-btn">${icon('plus')} Agregar reunión</button>
       </div>
+      ${(_mode === 'week' || _mode === 'weekArea') ? '' : `
+      <div class="toolbar" style="margin-top:10px;">
+        <div class="toolbar__filters" style="flex-wrap:wrap;">
+          ${_mode === 'area' ? `
+          <select id="f-area">
+            ${AREAS.map(([k,l]) => `<option value="${k}" ${_filters.area===k?'selected':''}>${l}</option>`).join('')}
+            ${isPrivileged() ? `<option value="ALL" ${_filters.area==='ALL'?'selected':''}>Todas las áreas</option>` : ''}
+          </select>` : ''}
+          <div class="search-box">
+            ${icon('search')}
+            <input id="f-participant" placeholder="Buscar participante..." value="${escapeHtml(_filters.participant)}">
+          </div>
+          <select id="f-type">
+            <option value="">Todos los tipos</option>
+            ${MEETING_TYPES.map(t => `<option value="${t}" ${_filters.type===t?'selected':''}>${t}</option>`).join('')}
+          </select>
+          <input type="date" id="f-date-from" value="${_filters.date_from}">
+          <input type="date" id="f-date-to" value="${_filters.date_to}">
+          <select id="f-status">
+            <option value="">Todos los estados</option>
+            ${Object.entries(STATUS_LABEL).map(([k,l]) => `<option value="${k}" ${_filters.status===k?'selected':''}>${l}</option>`).join('')}
+          </select>
+        </div>
+      </div>`}
     </div>
-    <div id="cal-list" style="margin-top:16px;">${listHtml()}</div>
+    ${_mode === 'week' ? weekViewHtml(false) : _mode === 'weekArea' ? weekViewHtml(true) : `
+    <div id="cal-list" style="margin-top:16px;">${listHtml()}</div>`}
   `;
   wirePage();
+}
+
+/* En la vista semana solo se muestran las reuniones propias (ver
+   load()), así que colorear por área no sirve para distinguirlas —
+   casi siempre serían todas del mismo color. Se colorea por tipo de
+   reunión en su lugar, que varía más seguido. */
+const MEETING_TYPE_COLORS = {
+  'Entrevista': '#6366f1',
+  'Onboarding': '#10b981',
+  'Evaluación': '#f59e0b',
+  'Capacitación': '#0ea5e9',
+  'Reunión interna': '#8b5cf6',
+  'Reunión con otra área': '#f43f5e',
+  'Reunión con proveedor': '#f97316',
+  'Reunión con candidato': '#14b8a6',
+  'Otro': '#64748b',
+};
+function meetingTypeColor(type) { return MEETING_TYPE_COLORS[type] || '#64748b'; }
+
+const WEEK_ROW_H = 48; // px por hora
+
+/* Reparte eventos que se solapan en el tiempo en columnas lado a lado
+   (como Google Calendar), para que nunca se dibujen uno encima del
+   otro. Agrupa eventos en "racimos" de solapamiento consecutivo y
+   dentro de cada racimo asigna la primera columna libre a cada evento
+   (algoritmo greedy por orden de inicio). */
+function layoutDayEvents(events) {
+  const sorted = [...events].sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+  const placed = [];
+  let cluster = [];
+  let clusterEnd = -Infinity;
+
+  const flushCluster = () => {
+    if (!cluster.length) return;
+    const colEnds = [];
+    cluster.forEach(ev => {
+      let col = colEnds.findIndex(end => end <= ev.startMin);
+      if (col === -1) { col = colEnds.length; colEnds.push(ev.endMin); }
+      else { colEnds[col] = ev.endMin; }
+      placed.push({ ev, col });
+    });
+    const totalCols = colEnds.length;
+    placed.slice(-cluster.length).forEach(p => { p.totalCols = totalCols; });
+    cluster = []; clusterEnd = -Infinity;
+  };
+
+  sorted.forEach(ev => {
+    if (cluster.length && ev.startMin >= clusterEnd) flushCluster();
+    cluster.push(ev);
+    clusterEnd = Math.max(clusterEnd, ev.endMin);
+  });
+  flushCluster();
+
+  return placed;
+}
+
+function weekViewHtml(general) {
+  const { monday, days } = weekBounds(_weekOffset);
+  const hours = [];
+  for (let h = WEEK_START_HOUR; h < WEEK_END_HOUR; h++) hours.push(h);
+  const rangeLabel = `${monday.getDate()} de ${MONTH_LABELS[monday.getMonth()]}${monday.getMonth() !== days[6].getMonth() ? ' – ' + days[6].getDate() + ' de ' + MONTH_LABELS[days[6].getMonth()] : ' – ' + days[6].getDate()} de ${days[6].getFullYear()}`;
+  const todayIso = todayISO();
+
+  const dayCols = days.map((d) => {
+    const iso = isoDate(d);
+    const isToday = iso === todayIso;
+    const dayMeetings = _meetings
+      .filter(m => m.meeting_date === iso && m.visibility !== 'busy_only')
+      .map(m => {
+        const [sh, sm] = m.start_time.slice(0,5).split(':').map(Number);
+        const [eh, em] = m.end_time.slice(0,5).split(':').map(Number);
+        return {
+          m,
+          startMin: Math.max(0, (sh - WEEK_START_HOUR) * 60 + sm),
+          endMin: Math.min((WEEK_END_HOUR - WEEK_START_HOUR) * 60, (eh - WEEK_START_HOUR) * 60 + em),
+        };
+      });
+    const blocks = layoutDayEvents(dayMeetings).map(({ ev, col, totalCols }) => {
+      const { m, startMin, endMin } = ev;
+      const top = (startMin / 60) * WEEK_ROW_H;
+      const height = Math.max(20, ((endMin - startMin) / 60) * WEEK_ROW_H);
+      const widthPct = 100 / totalCols;
+      const leftPct = col * widthPct;
+      const posStyle = totalCols > 1
+        ? `left:calc(${leftPct}% + 1px);width:calc(${widthPct}% - 2px)`
+        : 'left:2px;right:2px';
+      const internalNames = general
+        ? (m.participants || []).filter(p => p.participant_type === 'internal').map(p => p.user_name).filter(Boolean)
+        : [];
+      return `
+        <button type="button" class="cal-week-event" data-id="${m.id}" style="position:absolute;border:0;border-radius:6px;background:${meetingTypeColor(m.meeting_type)};color:#fff;text-align:left;padding:3px 6px;overflow:hidden;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.15);top:${top}px;height:${height}px;${posStyle}">
+          <div style="font-size:10px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(m.title)}</div>
+          <div style="font-size:9px;opacity:.9;line-height:1.2">${m.start_time.slice(0,5)}–${m.end_time.slice(0,5)}</div>
+          ${internalNames.length ? `<div style="font-size:9px;opacity:.85;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(internalNames.join(', '))}</div>` : ''}
+        </button>`;
+    }).join('');
+    return `
+      <div style="position:relative;border-left:1px solid var(--border);${isToday ? 'background:rgba(99,102,241,.05)' : ''}height:${hours.length * WEEK_ROW_H}px">
+        ${hours.map((_, hi) => `<div style="position:absolute;left:0;right:0;border-top:1px solid var(--border);top:${hi * WEEK_ROW_H}px"></div>`).join('')}
+        ${blocks}
+      </div>`;
+  }).join('');
+
+  const dayHeaders = days.map((d, i) => {
+    const iso = isoDate(d);
+    const isToday = iso === todayIso;
+    return `
+      <div style="text-align:center;padding:8px 0;border-left:1px solid var(--border);${isToday ? 'background:rgba(99,102,241,.05)' : ''}">
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">${WEEKDAY_LABELS[i]}</div>
+        <div style="font-size:13.5px;font-weight:700;${isToday ? 'color:var(--primary)' : ''}">${d.getDate()}</div>
+      </div>`;
+  }).join('');
+
+  return `
+  <div class="card" style="padding:0;overflow:hidden;margin-top:16px;">
+    ${general ? `<div style="padding:10px 14px 0;font-size:12px;font-weight:600;color:var(--text-muted);">Todas las reuniones del área RR. HH. — eventos que se cruzan en horario se muestran lado a lado</div>` : ''}
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);">
+      <button type="button" id="week-today-btn" class="btn btn-secondary" style="padding:6px 12px;font-size:12.5px;">Hoy</button>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button type="button" id="week-prev-btn" style="border:0;background:none;cursor:pointer;color:var(--text-muted);padding:4px;">${icon('chevron-left')}</button>
+        <span style="font-size:13.5px;font-weight:600;">${rangeLabel}</span>
+        <button type="button" id="week-next-btn" style="border:0;background:none;cursor:pointer;color:var(--text-muted);padding:4px;">${icon('chevron-right')}</button>
+      </div>
+      <div style="width:72px;"></div>
+    </div>
+    <div style="overflow-x:auto;">
+      <div style="display:grid;grid-template-columns:56px repeat(7,minmax(110px,1fr));min-width:820px">
+        <div></div>${dayHeaders}
+        <div style="position:relative;height:${hours.length * WEEK_ROW_H}px">
+          ${hours.map((h, hi) => `<div style="position:absolute;left:0;right:0;text-align:right;padding-right:8px;font-size:11px;color:var(--text-muted);transform:translateY(-50%);top:${hi * WEEK_ROW_H}px">${String(h).padStart(2,'0')}:00</div>`).join('')}
+        </div>
+        ${dayCols}
+      </div>
+    </div>
+  </div>`;
 }
 
 function listHtml() {
@@ -144,7 +326,19 @@ function meetingCard(m) {
 }
 
 function wirePage() {
-  document.querySelectorAll('.cal-tab').forEach(btn => btn.addEventListener('click', () => { _mode = btn.dataset.mode; load(); }));
+  document.querySelectorAll('.cal-tab').forEach(btn => btn.addEventListener('click', () => {
+    _mode = btn.dataset.mode;
+    if (_mode === 'week' || _mode === 'weekArea') _weekOffset = 0;
+    load();
+  }));
+
+  const weekPrev = document.getElementById('week-prev-btn');
+  if (weekPrev) weekPrev.addEventListener('click', () => { _weekOffset--; load(); });
+  const weekNext = document.getElementById('week-next-btn');
+  if (weekNext) weekNext.addEventListener('click', () => { _weekOffset++; load(); });
+  const weekToday = document.getElementById('week-today-btn');
+  if (weekToday) weekToday.addEventListener('click', () => { _weekOffset = 0; load(); });
+  document.querySelectorAll('.cal-week-event').forEach(btn => btn.addEventListener('click', () => viewMeeting(btn.dataset.id)));
 
   const areaSel = document.getElementById('f-area');
   if (areaSel) areaSel.addEventListener('change', e => { _filters.area = e.target.value; load(); });
@@ -171,29 +365,13 @@ function wirePage() {
   document.querySelectorAll('.cal-del-btn').forEach(btn => btn.addEventListener('click', () => deleteMeeting(btn.dataset.id)));
 }
 
-function openForm(editId) {
-  const editing = editId ? _meetings.find(m => m.id === editId) : null;
-  if (editId && (!editing || editing.visibility === 'busy_only')) return;
-  _editingId = editId || null;
-  _conflicts = [];
-  if (editing) {
-    _selectedParticipants = (editing.participants || []).filter(p => p.participant_type === 'internal')
-      .map(p => ({ user_id: p.user_id, nombre: p.user_name, area: p.user_area }));
-    _externalParticipants = (editing.participants || []).filter(p => p.participant_type === 'external')
-      .map(p => ({ name: p.external_name, kind: p.external_kind }));
-  } else {
-    _selectedParticipants = [];
-    _externalParticipants = [];
-  }
-
-  const modal = openModal({
-    title: editing ? 'Editar reunión' : 'Nueva reunión',
-    size: 'lg',
-    bodyHtml: `
+function formFieldsHtml(editing) {
+  const currentImage = _pendingImage !== null ? _pendingImage : (editing?.image_url || null);
+  return `
       <form id="meeting-form">
         <div class="field">
           <label>Nombre de la reunión *</label>
-          <input name="title" required value="${escapeHtml(editing?.title || '')}">
+          <input name="title" required autocomplete="off" value="${escapeHtml(editing?.title || '')}">
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
           <div class="field"><label>Fecha *</label><input type="date" name="date" required value="${editing?.meeting_date || ''}"></div>
@@ -207,13 +385,23 @@ function openForm(editId) {
             ${MEETING_TYPES.map(t => `<option value="${t}" ${editing?.meeting_type===t?'selected':''}>${t}</option>`).join('')}
           </select>
         </div>
-        <div class="field"><label>Ubicación</label><input name="location" placeholder="Sala de reuniones, dirección, link de videollamada..." value="${escapeHtml(editing?.location || '')}"></div>
-        <div class="field"><label>Motivo</label><input name="motivo" value="${escapeHtml(editing?.motivo || '')}"></div>
+        <div class="field"><label>Motivo</label><input name="motivo" autocomplete="off" value="${escapeHtml(editing?.motivo || '')}"></div>
         <div class="field"><label>Descripción</label><textarea name="description" rows="2">${escapeHtml(editing?.description || '')}</textarea></div>
+        <div class="field"><label>Ubicación</label><input name="location" placeholder="Sala de reuniones, dirección, link de videollamada..." autocomplete="off" value="${escapeHtml(editing?.location || '')}"></div>
+        <div class="field">
+          <label>Imagen del evento (opcional)</label>
+          ${currentImage ? `
+            <div style="position:relative;display:inline-block;margin-bottom:6px;">
+              <img src="${escapeHtml(currentImage)}" style="border-radius:8px;max-height:110px;border:1px solid var(--border);display:block;">
+              <button type="button" id="cal-image-remove" style="position:absolute;top:-6px;right:-6px;background:#fff;border-radius:50%;border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.2);width:22px;height:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-muted);">${icon('close')}</button>
+            </div>` : ''}
+          <input type="file" id="cal-image-input" accept="image/*" style="font-size:12.5px;">
+          <p id="cal-image-status" class="cell-sub" style="margin-top:4px;"></p>
+        </div>
         <div class="field">
           <label>Participantes internos</label>
           <div style="position:relative;">
-            <input id="cal-participant-search" placeholder="Buscar por nombre, cargo o área...">
+            <input id="cal-participant-search" placeholder="Buscar por nombre, cargo o área..." autocomplete="off">
             <div id="cal-dir-results" style="display:none;position:absolute;z-index:10;left:0;right:0;background:var(--card-bg,#fff);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);margin-top:4px;max-height:180px;overflow-y:auto;"></div>
           </div>
           <div id="cal-selected-participants" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">${selectedParticipantsHtml()}</div>
@@ -221,7 +409,7 @@ function openForm(editId) {
         <div class="field">
           <label>Participante externo (cliente, postulante, proveedor...)</label>
           <div style="display:flex;gap:8px;">
-            <input id="cal-ext-name" placeholder="Nombre" style="flex:1;">
+            <input id="cal-ext-name" placeholder="Nombre" autocomplete="off" style="flex:1;">
             <select id="cal-ext-kind" style="width:auto;">${EXTERNAL_KINDS.map(([k,l]) => `<option value="${k}">${l}</option>`).join('')}</select>
             <button type="button" class="btn btn-secondary" id="cal-ext-add">${icon('plus')}</button>
           </div>
@@ -229,7 +417,29 @@ function openForm(editId) {
         </div>
         <div id="cal-conflict-banner"></div>
       </form>
-    `,
+    `;
+}
+
+function openForm(editId) {
+  const editing = editId ? _meetings.find(m => m.id === editId) : null;
+  if (editId && (!editing || editing.visibility === 'busy_only')) return;
+  _editingId = editId || null;
+  _conflicts = [];
+  _pendingImage = null;
+  if (editing) {
+    _selectedParticipants = (editing.participants || []).filter(p => p.participant_type === 'internal')
+      .map(p => ({ user_id: p.user_id, nombre: p.user_name, area: p.user_area }));
+    _externalParticipants = (editing.participants || []).filter(p => p.participant_type === 'external')
+      .map(p => ({ name: p.external_name, kind: p.external_kind }));
+  } else {
+    _selectedParticipants = [];
+    _externalParticipants = [];
+  }
+
+  const modal = openModal({
+    title: editing ? 'Editar reunión' : 'Nueva reunión',
+    size: 'lg',
+    bodyHtml: formFieldsHtml(editing),
     footerHtml: `
       <button class="btn btn-secondary" data-close>Cancelar</button>
       <button class="btn btn-primary" id="cal-save-btn" ${_conflicts.length ? 'disabled' : ''}>${editing ? 'Guardar cambios' : 'Guardar reunión'}</button>
@@ -237,12 +447,56 @@ function openForm(editId) {
   });
 
   wireFormExtras(modal);
+  wireImageControls(modal);
   const form = modal.querySelector('#meeting-form');
   ['date', 'start_time', 'end_time'].forEach(name => {
     const el = form.elements[name];
     if (el) el.addEventListener('change', () => liveCheck(modal));
   });
   modal.querySelector('#cal-save-btn').addEventListener('click', () => submitForm(modal));
+}
+
+/* Vuelve a pintar solo el cuerpo del modal (p. ej. tras subir o quitar
+   la imagen), sin cerrar y reabrir el modal entero — así no se pierde
+   el resto de lo que ya se había tecleado en el formulario. */
+function rerenderFormBody(modal) {
+  const editing = _editingId ? _meetings.find(m => m.id === _editingId) : null;
+  const body = modal.querySelector('.modal__body');
+  if (!body) return;
+  body.innerHTML = formFieldsHtml(editing);
+  wireFormExtras(modal);
+  wireImageControls(modal);
+  const form = modal.querySelector('#meeting-form');
+  ['date', 'start_time', 'end_time'].forEach(name => {
+    const el = form.elements[name];
+    if (el) el.addEventListener('change', () => liveCheck(modal));
+  });
+}
+
+function wireImageControls(modal) {
+  const imageInput = modal.querySelector('#cal-image-input');
+  if (imageInput) imageInput.addEventListener('change', (e) => handleImageUpload(e, modal));
+  const imageRemove = modal.querySelector('#cal-image-remove');
+  if (imageRemove) imageRemove.addEventListener('click', () => {
+    _pendingImage = null;
+    rerenderFormBody(modal);
+  });
+}
+
+async function handleImageUpload(e, modal) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const status = modal.querySelector('#cal-image-status');
+  if (status) status.textContent = 'Subiendo imagen...';
+  try {
+    const url = await Store.uploadMeetingImage(file);
+    _pendingImage = url;
+    rerenderFormBody(modal);
+    toast('Imagen subida', 'success');
+  } catch (err) {
+    if (status) status.textContent = '';
+    toast(err.message || 'No se pudo subir la imagen', 'error');
+  }
 }
 
 function selectedParticipantsHtml() {
@@ -275,7 +529,7 @@ function conflictBannerHtml() {
 function wireFormExtras(modal) {
   const search = modal.querySelector('#cal-participant-search');
   const results = modal.querySelector('#cal-dir-results');
-  search.addEventListener('input', () => {
+  if (search) search.addEventListener('input', () => {
     clearTimeout(_dirDebounce);
     const q = search.value.trim();
     if (!q) { results.style.display = 'none'; results.innerHTML = ''; return; }
@@ -305,7 +559,8 @@ function wireFormExtras(modal) {
   });
   wireRemoveParticipants(modal);
 
-  modal.querySelector('#cal-ext-add').addEventListener('click', () => {
+  const extAdd = modal.querySelector('#cal-ext-add');
+  if (extAdd) extAdd.addEventListener('click', () => {
     const nameEl = modal.querySelector('#cal-ext-name');
     const kindEl = modal.querySelector('#cal-ext-kind');
     const name = nameEl.value.trim();
@@ -378,8 +633,11 @@ async function submitForm(modal) {
   if (end_time <= start_time) return toast('La hora de fin debe ser posterior a la de inicio', 'error');
   if (!_selectedParticipants.length && !_externalParticipants.length) return toast('Selecciona al menos un participante', 'error');
 
+  const editing = _meetings.find(m => m.id === _editingId);
+  const image_url = _pendingImage !== null ? _pendingImage : (editing?.image_url || null);
+
   const payload = {
-    title, date, start_time, end_time, meeting_type, location, motivo, description,
+    title, date, start_time, end_time, meeting_type, location, motivo, description, image_url,
     participants: _selectedParticipants.map(p => ({ user_id: p.user_id })),
     external_participants: _externalParticipants,
   };
@@ -426,13 +684,14 @@ function viewMeeting(id) {
     title: m.title,
     bodyHtml: `
       <div style="font-size:13.5px;display:flex;flex-direction:column;gap:8px;">
+        ${m.image_url ? `<img src="${escapeHtml(m.image_url)}" style="width:100%;max-height:220px;object-fit:cover;border-radius:8px;border:1px solid var(--border);">` : ''}
         <p><strong>Área:</strong> ${escapeHtml(m.area)}</p>
         <p><strong>Fecha:</strong> ${formatDate(m.meeting_date)}</p>
         <p><strong>Horario:</strong> ${m.start_time.slice(0,5)} — ${m.end_time.slice(0,5)}</p>
         ${m.meeting_type ? `<p><strong>Tipo:</strong> ${escapeHtml(m.meeting_type)}</p>` : ''}
         ${m.location ? `<p><strong>Ubicación:</strong> ${escapeHtml(m.location)}</p>` : ''}
         ${m.motivo ? `<p><strong>Motivo:</strong> ${escapeHtml(m.motivo)}</p>` : ''}
-        ${m.description ? `<p><strong>Descripción:</strong> ${escapeHtml(m.description)}</p>` : ''}
+        ${m.description ? `<div><strong>Descripción:</strong><p style="margin-top:4px;white-space:pre-wrap">${escapeHtml(m.description)}</p></div>` : ''}
         <div><strong>Participantes:</strong><ul style="margin:4px 0 0 18px;padding:0;">${participantsHtml || '<li>Sin participantes</li>'}</ul></div>
         <p class="cell-sub">Programada por ${escapeHtml(m.created_by_name || '—')}</p>
       </div>

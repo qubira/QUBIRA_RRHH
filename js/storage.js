@@ -93,6 +93,31 @@ export const Store = {
     const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '')).toString();
     return qrFetch('/api/calendar/directory' + (qs ? '?' + qs : ''));
   },
+  // Imagen opcional de una reunión (sube a Cloudinary vía la API, mismo
+  // patrón que uploadFoto: el body es FormData, no debe llevar
+  // Content-Type: application/json).
+  uploadMeetingImage: async (file) => {
+    const token = qrToken();
+    const fd = new FormData();
+    fd.append('image', file);
+
+    const res = await fetch(QR_API_BASE + '/api/calendar/meetings/image', {
+      method: 'POST',
+      headers: token ? { Authorization: 'Bearer ' + token } : {},
+      body: fd,
+    });
+
+    if (res.status === 401) {
+      localStorage.removeItem('rrhh_token');
+      localStorage.removeItem('rrhh_user');
+      window.location.href = 'login.html';
+      throw new Error('SESSION_EXPIRED');
+    }
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('Error ' + res.status));
+    return data.url;
+  },
 
   // Auditoría corporativa (API/src/routes/audit.js) — solo cargos
   // Supervisor/Coordinador/Gerente o nivel_acceso>=100 pueden consultarla.
