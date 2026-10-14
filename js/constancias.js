@@ -280,6 +280,10 @@ function openEditForm(c) {
     bodyHtml: `
       <form id="edit-constancia-form">
         <div class="field">
+          <label>N.° de constancia</label>
+          <input type="text" name="numero" value="${escapeHtml(c.numero || '')}">
+        </div>
+        <div class="field">
           <label>Nombre completo</label>
           <input type="text" name="nombreCompleto" value="${escapeHtml(c.nombreCompleto || '')}">
         </div>
@@ -325,7 +329,7 @@ function openEditForm(c) {
           <label>Lugar de emisión</label>
           <input type="text" name="lugar" value="${escapeHtml(c.lugar || '')}">
         </div>
-        <p style="color:var(--text-muted);font-size:12px;">El N.° de constancia y el código de verificación no cambian al editar.</p>
+        <p style="color:var(--text-muted);font-size:12px;">El código de verificación (el del QR) no cambia al editar — solo el N.° de constancia es editable.</p>
       </form>
     `,
     footerHtml: `
