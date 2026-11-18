@@ -8,7 +8,7 @@ const CATALOG_GROUPS = [
   { key: 'estadosCiviles', label: 'Estados civiles' },
   { key: 'dominiosEmail', label: 'Dominios de correo' },
   { key: 'tiposAntecedente', label: 'Tipos de antecedente' },
-  { key: 'areasTrabajo', label: 'Áreas de trabajo' },
+  { key: 'areasTrabajo', label: 'Áreas de trabajo (sigla y nombre oficial)', tipo: 'areas' },
   { key: 'cargos', label: 'Cargos principales (nivel jerárquico)', tipo: 'cargos' },
   { key: 'subcargos', label: 'Sub-cargos', tipo: 'subcargos', parentKey: 'cargos' },
   { key: 'departamentosGeo', label: 'Departamentos (ubicación)' },
@@ -25,6 +25,11 @@ const NIVELES = ['Director', 'Gerente', 'Jefe de Oficina', 'Coordinador', 'Super
 
 // Controles extra al agregar: nivel para cargos; cargo principal y área para sub-cargos
 function extraAddHtml(g) {
+  if (g.tipo === 'areas') {
+    return `<p class="settings-empty" style="margin:0 0 6px;width:100%">La sigla (2 a 5 letras) va en los códigos de documentos y se bloquea cuando ya se usó. El nombre completo se imprime en los membretes.</p>
+      <input type="text" id="settings-add-nombrecompleto-${g.key}" placeholder="Nombre completo (ej. Oficina de Logística)" style="flex:1 1 100%">
+      <input type="text" id="settings-add-alias-${g.key}" placeholder="Alias, separados por coma (opcional)" style="flex:1 1 100%">`;
+  }
   if (g.tipo === 'cargos') {
     return `<select id="settings-add-nivel-${g.key}" aria-label="Nivel jerárquico"><option value="">Nivel…</option>${NIVELES.map((n, i) => `<option value="${i + 1}">N${i + 1} · ${escapeHtml(n)}</option>`).join('')}</select>`;
   }
@@ -51,7 +56,7 @@ export function renderSettings() {
           <div class="settings-card__list" id="settings-list-${g.key}"></div>
           <div class="settings-card__add" ${g.tipo ? 'style="flex-wrap:wrap"' : ''}>
             ${extraAddHtml(g)}
-            <input type="text" id="settings-add-input-${g.key}" placeholder="Agregar nuevo...">
+            <input type="text" id="settings-add-input-${g.key}" placeholder="${g.tipo === 'areas' ? 'Sigla (ej. OLG)' : 'Agregar nuevo...'}"${g.tipo === 'areas' ? ' maxlength="5" style="text-transform:uppercase"' : ''}>
             <button type="button" class="btn btn-secondary btn-sm" data-add="${g.key}">${icon('plus')}</button>
           </div>
         </div>
@@ -104,9 +109,38 @@ function renderGroup(group) {
       if (ar !== areaPrev) { titulo = `<div class="settings-item__parent" style="font-weight:700;margin:10px 0 2px">${escapeHtml(ar)}</div>`; areaPrev = ar; }
     }
     const nivel = item.nivel ? `<span class="tag" title="Nivel jerárquico">N${item.nivel}</span>` : '';
+    if (group.tipo === 'areas') return renderArea(item);
     return titulo + renderItem(item, group.tipo === 'subcargos' ? '' : parent, nivel);
   }).join('');
   bindItems(group, list);
+}
+
+/* Área: sigla, nombre completo, alias y activa */
+function renderArea(a) {
+  const sigla = a.sigla || a.nombre;
+  const alias = (a.alias || []).join(', ');
+  return `
+    <div class="settings-item" data-id="${a.id}">
+      <div class="settings-item__view" style="flex-wrap:wrap">
+        <span class="tag" title="Sigla">${escapeHtml(sigla)}</span>
+        <span class="settings-item__name">${escapeHtml(a.nombreCompleto || 'Falta el nombre completo')}</span>
+        ${a.activo === false ? '<span class="tag" style="background:#fee2e2;color:#991b1b">Inactiva</span>' : ''}
+        ${a.siglaBloqueada ? '<span class="settings-item__parent" title="Ya se usó en códigos de documentos">🔒 sigla en uso</span>' : ''}
+        ${alias ? `<span class="settings-item__parent" style="flex-basis:100%">También: ${escapeHtml(alias)}</span>` : ''}
+        <div class="settings-item__actions">
+          <button type="button" class="btn btn-ghost btn-sm" data-action="edit" title="Editar">${icon('edit')}</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-action="delete" title="Eliminar">${icon('trash')}</button>
+        </div>
+      </div>
+      <div class="settings-item__edit" style="display:none;flex-wrap:wrap;gap:6px">
+        <input type="text" data-f="sigla" value="${escapeHtml(sigla)}" maxlength="5" style="width:90px;text-transform:uppercase" ${a.siglaBloqueada ? 'disabled title="Ya se usó en códigos: no se puede cambiar"' : ''} aria-label="Sigla">
+        <input type="text" data-f="nombreCompleto" value="${escapeHtml(a.nombreCompleto || '')}" placeholder="Nombre completo" style="flex:1 1 220px" aria-label="Nombre completo">
+        <input type="text" data-f="alias" value="${escapeHtml(alias)}" placeholder="Alias, separados por coma" style="flex:1 1 100%" aria-label="Alias">
+        <label style="font-size:12.5px;display:flex;align-items:center;gap:4px"><input type="checkbox" data-f="activo" ${a.activo === false ? '' : 'checked'}> Activa</label>
+        <button type="button" class="btn btn-primary btn-sm" data-action="save">Guardar</button>
+        <button type="button" class="btn btn-secondary btn-sm" data-action="cancel">Cancelar</button>
+      </div>
+    </div>`;
 }
 
 function renderItem(item, parent, nivel) {
@@ -146,7 +180,12 @@ function bindItems(group, list) {
       editBox.style.display = 'none';
       viewBox.style.display = '';
     });
-    row.querySelector('[data-action="save"]').addEventListener('click', () => handleRename(group, id, editBox.querySelector('input').value));
+    row.querySelector('[data-action="save"]').addEventListener('click', () => {
+      if (group.tipo !== 'areas') return handleRename(group, id, editBox.querySelector('input').value);
+      const f = n => editBox.querySelector(`[data-f="${n}"]`);
+      const sigla = f('sigla').value.trim().toUpperCase();
+      handleRename(group, id, sigla, { sigla, nombreCompleto: f('nombreCompleto').value.trim(), alias: f('alias').value, activo: f('activo').checked });
+    });
     row.querySelector('[data-action="delete"]').addEventListener('click', () => handleDelete(group, id));
   });
 }
@@ -161,14 +200,22 @@ async function handleAdd(key) {
     extra.nivel = document.getElementById(`settings-add-nivel-${key}`).value;
     if (!extra.nivel) { toast('Elige el nivel jerárquico del cargo.', 'error'); return; }
   }
+  if (group.tipo === 'areas') {
+    extra.sigla = value.toUpperCase();
+    extra.nombreCompleto = document.getElementById(`settings-add-nombrecompleto-${key}`).value.trim();
+    extra.alias = document.getElementById(`settings-add-alias-${key}`).value;
+    if (!/^[A-Z]{2,5}$/.test(extra.sigla)) { toast('La sigla debe tener de 2 a 5 letras.', 'error'); return; }
+    if (!extra.nombreCompleto) { toast('Escribe el nombre completo del área.', 'error'); return; }
+  }
   if (group.tipo === 'subcargos') {
     parentId = document.getElementById(`settings-add-padre-${key}`).value;
     extra.area = document.getElementById(`settings-add-area-${key}`).value;
     if (!parentId || !extra.area) { toast('Elige el cargo principal y el área del sub-cargo.', 'error'); return; }
   }
   try {
-    await Store.addCatalogItem(key, value, parentId, extra);
+    await Store.addCatalogItem(key, group.tipo === 'areas' ? extra.sigla : value, parentId, extra);
     input.value = '';
+    if (group.tipo === 'areas') ['nombrecompleto', 'alias'].forEach(k => { document.getElementById(`settings-add-${k}-${key}`).value = ''; });
     renderGroup(group);
     if (group.tipo === 'cargos') renderGroup(CATALOG_GROUPS.find(g => g.tipo === 'subcargos'));
     toast('Valor agregado.', 'success');
@@ -177,11 +224,11 @@ async function handleAdd(key) {
   }
 }
 
-async function handleRename(group, id, value) {
+async function handleRename(group, id, value, extra = {}) {
   const nombre = value.trim();
   if (!nombre) return;
   try {
-    await Store.updateCatalogItem(group.key, id, nombre);
+    await Store.updateCatalogItem(group.key, id, nombre, extra);
     renderGroup(group);
     toast('Valor actualizado.', 'success');
   } catch (err) {
@@ -192,7 +239,9 @@ async function handleRename(group, id, value) {
 async function handleDelete(group, id) {
   const hasChildren = group.key === 'departamentosGeo' || group.key === 'provincias';
   const confirmed = await confirmDialog(
-    hasChildren
+    group.tipo === 'areas'
+      ? 'Vas a eliminar esta área. Solo se puede si no tiene empleados ni documentos codificados; si los tiene, desactívala (editar → quitar «Activa»).'
+      : hasChildren
       ? 'Vas a eliminar este valor. Si tiene provincias o distritos debajo, también se eliminarán. Esta acción no se puede deshacer.'
       : 'Vas a eliminar este valor. Si algún empleado lo tiene asignado, quedará sin ese dato. Esta acción no se puede deshacer.'
   );

@@ -34,6 +34,7 @@ function departmentOptions(selectedId) {
 function catalogOptions(catalogKey, selectedId, parentId) {
   let items = Store.getCatalog(catalogKey);
   if (parentId !== undefined) items = items.filter(i => i.parentId === (parentId || '__sin_padre__'));
+  if (catalogKey === 'areasTrabajo') items = items.filter(i => i.activo !== false || i.id === selectedId); // áreas desactivadas: solo si ya estaban elegidas
   if (catalogKey === 'cargos') items = [...items].sort((a, b) => (a.nivel || 99) - (b.nivel || 99));
   return items.map(i =>
     `<option value="${i.id}" ${i.id === selectedId ? 'selected' : ''}>${i.nivel ? 'N' + i.nivel + ' · ' : ''}${escapeHtml(i.nombre)}</option>`

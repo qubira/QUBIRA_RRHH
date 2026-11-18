@@ -196,13 +196,13 @@ export const Store = {
     db.catalogs[catalogKey].push(res.data);
     return res.data;
   },
-  updateCatalogItem: async (catalogKey, id, nombre) => {
+  updateCatalogItem: async (catalogKey, id, nombre, extra = {}) => {
     const res = await qrFetch(`/api/rrhh/catalogos/item/${id}`, {
-      method: 'PUT', body: JSON.stringify({ nombre }),
+      method: 'PUT', body: JSON.stringify({ nombre, ...extra }),
     });
     const list = db.catalogs[catalogKey] || [];
     const i = list.findIndex(item => item.id === id);
-    if (i >= 0) list[i] = { ...list[i], nombre: res.data.nombre };
+    if (i >= 0) list[i] = { ...list[i], ...res.data, parentId: res.data.parentId ?? list[i].parentId };
     return res.data;
   },
   deleteCatalogItem: async (catalogKey, id) => {
