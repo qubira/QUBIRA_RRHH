@@ -2,6 +2,8 @@ import { Store } from './storage.js';
 import { icon, escapeHtml } from './utils.js';
 
 const AREAS = [['RRHH','ORH'],['ADG','ADG'],['TI','OTI'],['SOPORTE','Soporte']];
+// Áreas desde el catálogo de ORH (fuente única); esta lista queda solo como respaldo
+(window.__qbListasAreas ||= []).push([AREAS, 'RRHH']);
 const ACTION_LABEL = { view: 'Consultó', create: 'Creó', update: 'Actualizó', delete: 'Eliminó', login: 'Inició sesión', logout: 'Cerró sesión' };
 
 let _rows = [];
