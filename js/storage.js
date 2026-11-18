@@ -252,9 +252,11 @@ export const Store = {
     if (i >= 0) db.contracts[i] = res.data;
     return res.data;
   },
-  deleteContract: async (id) => {
-    await qrFetch(`/api/rrhh/contratos/${id}`, { method: 'DELETE' });
-    db.contracts = db.contracts.filter(c => c.id !== id);
+  // Un contrato no se elimina: se anula con motivo (queda en la lista como ANULADO)
+  deleteContract: async (id, motivo) => {
+    const res = await qrFetch(`/api/rrhh/contratos/${id}`, { method: 'DELETE', body: JSON.stringify({ motivo }) });
+    const i = db.contracts.findIndex(c => c.id === id);
+    if (i >= 0 && res && res.data) db.contracts[i] = res.data;
   },
 
   // Documents

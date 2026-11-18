@@ -1,5 +1,5 @@
 import { Store } from './storage.js';
-import { openModal, closeModal, confirmDialog, toast } from './ui.js';
+import { openModal, closeModal, confirmDialog, motivoDialog, toast } from './ui.js';
 import {
   formatDate, formatMoney, fullName, initials, icon, escapeHtml,
   contractStatus, CONTRACT_STATUS_META,
@@ -112,7 +112,8 @@ function rowHtml(c) {
       <td>
         <div class="person-cell">
           ${emp ? `<div class="avatar">${initials(emp.nombre, emp.apellido)}</div>` : ''}
-          <div class="cell-main">${emp ? escapeHtml(fullName(emp)) : '<em>Empleado eliminado</em>'}</div>
+          <div class="cell-main">${emp ? escapeHtml(fullName(emp)) : '<em>Empleado eliminado</em>'}
+            ${c.codigo ? `<div style="font-size:11px;color:var(--text-muted);font-family:monospace">${escapeHtml(c.codigo)}${c.estadoRegistro === 'ANULADO' ? ' · ANULADO' : ''}</div>` : ''}</div>
         </div>
       </td>
       <td>${escapeHtml(c.tipo)}</td>
@@ -123,7 +124,7 @@ function rowHtml(c) {
       <td>
         <div class="table-actions">
           <button class="btn btn-ghost btn-sm" data-action="edit" data-id="${c.id}" title="Editar">${icon('edit')}</button>
-          <button class="btn btn-ghost btn-sm" data-action="delete" data-id="${c.id}" title="Eliminar">${icon('trash')}</button>
+          ${c.estadoRegistro === 'ANULADO' ? '' : `<button class="btn btn-ghost btn-sm" data-action="delete" data-id="${c.id}" title="Anular (con motivo)">${icon('trash')}</button>`}
         </div>
       </td>
     </tr>
@@ -221,10 +222,13 @@ function openContractForm(id) {
 }
 
 async function handleDelete(id) {
-  const confirmed = await confirmDialog('Vas a eliminar este contrato. Esta acción no se puede deshacer.');
-  if (!confirmed) return;
-  await Store.deleteContract(id);
-  toast('Contrato eliminado.', 'success');
+  const c = Store.getContracts().find(x => x.id === id);
+  if (c && c.estadoRegistro === 'ANULADO') { toast('Este contrato ya está anulado.', 'info'); return; }
+  const motivo = await motivoDialog(`El contrato ${c && c.codigo ? c.codigo + ' ' : ''}quedará ANULADO: no se borra y su número no se reutiliza.`, { title: 'Anular contrato' });
+  if (!motivo) return;
+  try { await Store.deleteContract(id, motivo); }
+  catch (err) { toast(err.message || 'No se pudo anular el contrato.', 'error'); return; }
+  toast('Contrato anulado.', 'success');
   renderTable();
   document.dispatchEvent(new CustomEvent('data:changed'));
 }

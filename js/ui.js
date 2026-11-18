@@ -55,6 +55,25 @@ export function confirmDialog(message, { title = 'Confirmar acción', confirmLab
   });
 }
 
+/* Pide un motivo (anular): devuelve el texto o null si se cancela */
+export function motivoDialog(message, { title = 'Anular', confirmLabel = 'Anular' } = {}) {
+  return new Promise((resolve) => {
+    activeResolve = () => resolve(null);
+    openModal({
+      title, size: 'sm',
+      bodyHtml: `<p style="margin:0 0 10px;color:var(--text-muted);font-size:13.5px;">${message}</p>
+        <textarea id="motivo-txt" rows="3" style="width:100%" placeholder="Motivo (obligatorio)"></textarea>`,
+      footerHtml: `<button class="btn btn-secondary" data-close>Cancelar</button><button class="btn btn-danger" id="motivo-ok">${confirmLabel}</button>`,
+    });
+    const txt = document.getElementById('motivo-txt'); setTimeout(() => txt.focus(), 50);
+    document.getElementById('motivo-ok').addEventListener('click', () => {
+      if (!txt.value.trim()) { txt.focus(); return; }
+      const v = txt.value.trim();
+      activeResolve = null; resolve(v); closeModal();
+    });
+  });
+}
+
 export function toast(message, type = 'info') {
   const el = document.createElement('div');
   el.className = `toast ${type}`;
