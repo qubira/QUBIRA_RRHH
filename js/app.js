@@ -16,8 +16,8 @@ import { renderSettings } from './settings.js';
 import { contractStatus } from './utils.js';
 
 const VIEWS = {
-  dashboard: { render: renderDashboard, title: 'Dashboard', subtitle: 'Resumen general de Recursos Humanos' },
-  calendario: { render: renderCalendario, title: 'Calendario', subtitle: 'Reuniones de RR. HH. e interconexión con otras áreas' },
+  dashboard: { render: renderDashboard, title: 'Dashboard', subtitle: 'Resumen general de la Oficina de Recursos Humanos' },
+  calendario: { render: renderCalendario, title: 'Calendario', subtitle: 'Reuniones de ORH e interconexión con otras áreas' },
   employees: { render: renderEmployees, title: 'Empleados', subtitle: 'Gestión de datos del personal' },
   contracts: { render: renderContracts, title: 'Contratos', subtitle: 'Administración de contratos laborales' },
   documents: { render: renderDocuments, title: 'Documentos', subtitle: 'Archivos y documentación del personal' },
@@ -110,7 +110,7 @@ function renderSession() {
     const roleEl = document.getElementById('session-role');
     const avatarEl = document.getElementById('session-avatar');
     if (nameEl) nameEl.textContent = nombre;
-    if (roleEl) roleEl.textContent = `${user.rol || 'RRHH'} · Qubira`;
+    if (roleEl) roleEl.textContent = `${user.rol || 'ORH'} · Qubira`;
     if (avatarEl) avatarEl.textContent = iniciales;
   } catch (_) { /* si el user guardado esta corrupto, se deja el placeholder */ }
 }
@@ -137,7 +137,7 @@ function showBootError() {
   if (main) {
     main.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:12px;text-align:center;padding:20px">
-        <strong style="font-size:18px">No se pudo conectar con la API de RRHH</strong>
+        <strong style="font-size:18px">No se pudo conectar con la API de ORH</strong>
         <p style="color:var(--text-muted);max-width:420px">Verifica tu conexión e intenta de nuevo. Si el problema persiste, contacta a soporte técnico.</p>
         <button class="btn btn-primary" onclick="location.reload()">Reintentar</button>
       </div>`;

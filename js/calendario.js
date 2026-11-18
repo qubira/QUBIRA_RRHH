@@ -3,7 +3,7 @@ import { openModal, closeModal, confirmDialog, toast } from './ui.js';
 import { formatDate, icon, escapeHtml } from './utils.js';
 
 const OWN_AREA = 'RRHH';
-const AREAS = [['RRHH','RR. HH.'],['ADG','ADG'],['TI','OTI'],['SOPORTE','Soporte']];
+const AREAS = [['RRHH','ORH'],['ADG','ADG'],['TI','OTI'],['SOPORTE','Soporte']];
 const MEETING_TYPES = ['Entrevista','Onboarding','Evaluación','Capacitación','Reunión interna','Reunión con otra área','Reunión con proveedor','Reunión con candidato','Otro'];
 const EXTERNAL_KINDS = [['cliente','Cliente'],['postulante','Postulante'],['proveedor','Proveedor'],['consultor','Consultor'],['otro','Otro']];
 const STATUS_LABEL = { scheduled:'Programada', confirmed:'Confirmada', in_progress:'En curso', completed:'Finalizada', cancelled:'Cancelada' };
@@ -124,7 +124,7 @@ function renderPage() {
     <div style="position:sticky;top:0;z-index:30;background:var(--bg,#f6f7f9);padding-top:4px;padding-bottom:10px;margin:0 -2px;">
       <div class="toolbar">
         <div class="cal-tabs">
-          <button type="button" class="cal-tab ${_mode==='area' ? 'active' : ''}" data-mode="area">Calendario — RR.HH.</button>
+          <button type="button" class="cal-tab ${_mode==='area' ? 'active' : ''}" data-mode="area">Calendario — ORH</button>
           <button type="button" class="cal-tab ${_mode==='mine' ? 'active' : ''}" data-mode="mine">Mi agenda</button>
           <button type="button" class="cal-tab ${_mode==='week' ? 'active' : ''}" data-mode="week">Vista semana</button>
           <button type="button" class="cal-tab ${_mode==='weekArea' ? 'active' : ''}" data-mode="weekArea">Vista semana general</button>
@@ -275,7 +275,7 @@ function weekViewHtml(general) {
 
   return `
   <div class="card" style="padding:0;overflow:hidden;margin-top:16px;">
-    ${general ? `<div style="padding:10px 14px 0;font-size:12px;font-weight:600;color:var(--text-muted);">Todas las reuniones del área RR. HH. — eventos que se cruzan en horario se muestran lado a lado</div>` : ''}
+    ${general ? `<div style="padding:10px 14px 0;font-size:12px;font-weight:600;color:var(--text-muted);">Todas las reuniones del área ORH — eventos que se cruzan en horario se muestran lado a lado</div>` : ''}
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);">
       <button type="button" id="week-today-btn" class="btn btn-secondary" style="padding:6px 12px;font-size:12.5px;">Hoy</button>
       <div style="display:flex;align-items:center;gap:8px;">

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QUBIRA RRHH | Verificando sesión</title>
+<title>QUBIRA ORH | Verificando sesión</title>
 <link rel="icon" href="https://raw.githubusercontent.com/qubira/IMAGENES/main/logo2.png" type="image/png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -79,7 +79,7 @@ async function exchangeHandoff(code) {
     if (!res.ok || !data.ok) { showError(data.error || 'El enlace de acceso venció o ya se usó.'); return; }
 
     if (!(data.user.authorized_modules || []).includes('RRHH')) {
-      showError('Tu cuenta no tiene autorización para RR. HH.');
+      showError('Tu cuenta no tiene autorización para ORH');
       return;
     }
 
@@ -102,7 +102,7 @@ async function checkExistingSession() {
     const data = await res.json();
     if (!(data.user.authorized_modules || []).includes('RRHH')) {
       localStorage.removeItem('rrhh_token'); localStorage.removeItem('rrhh_user');
-      showError('Tu cuenta no tiene autorización para RR. HH.');
+      showError('Tu cuenta no tiene autorización para ORH');
       return;
     }
     localStorage.setItem('rrhh_user', JSON.stringify(data.user));
