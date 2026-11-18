@@ -188,9 +188,9 @@ export const Store = {
   // Catálogos editables (tipo de documento, nacionalidad, ubicación, etc.)
   getCatalog: (catalogKey) => db.catalogs[catalogKey] || [],
   getCatalogItem: (catalogKey, id) => (db.catalogs[catalogKey] || []).find(i => i.id === id),
-  addCatalogItem: async (catalogKey, nombre, parentId = null) => {
+  addCatalogItem: async (catalogKey, nombre, parentId = null, extra = {}) => {
     const res = await qrFetch(`/api/rrhh/catalogos/${encodeURIComponent(catalogKey)}`, {
-      method: 'POST', body: JSON.stringify({ nombre, parentId }),
+      method: 'POST', body: JSON.stringify({ nombre, parentId, ...extra }),
     });
     if (!db.catalogs[catalogKey]) db.catalogs[catalogKey] = [];
     db.catalogs[catalogKey].push(res.data);

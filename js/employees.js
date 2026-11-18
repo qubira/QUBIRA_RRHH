@@ -101,10 +101,33 @@ function resizeImageToDataUrl(file, maxSize = 240) {
   });
 }
 
+/* ── Jerarquía: sub-cargos por área y cargo principal ── */
+const CANON_AREA = { ORH: 'RRHH', ODN: 'COMERCIAL', OCOS: 'SOPORTE', OTI: 'TI' };
+const canonArea = n => { const a = String(n || '').trim().toUpperCase(); return CANON_AREA[a] || a; };
+function nivelDe(emp) {
+  const sub = emp.subcargoId ? Store.getCatalogItem('subcargos', emp.subcargoId) : null;
+  const cargo = emp.cargoId ? Store.getCatalogItem('cargos', emp.cargoId) : null;
+  return (cargo && cargo.nivel) || (sub && sub.nivel) || null;
+}
+// Puesto visible: sub-cargo si tiene, si no el cargo principal
+function puestoDe(emp) {
+  const sub = emp.subcargoId ? Store.getCatalogItem('subcargos', emp.subcargoId) : null;
+  if (sub) return sub.nombre;
+  const n = catalogName('cargos', emp.cargoId);
+  return n === '—' ? '' : n;
+}
+function subcargoOptions(areaId, cargoId, selectedId) {
+  const area = areaId ? canonArea(catalogName('areasTrabajo', areaId)) : '';
+  const lista = Store.getCatalog('subcargos')
+    .filter(s => (!area || canonArea(s.area) === area) && (!cargoId || s.parentId === cargoId || s.id === selectedId))
+    .sort((a, b) => (a.nivel || 99) - (b.nivel || 99) || a.nombre.localeCompare(b.nombre));
+  return lista.map(s => `<option value="${s.id}" ${s.id === selectedId ? 'selected' : ''}>N${s.nivel || '?'} · ${escapeHtml(s.nombre)}</option>`).join('');
+}
+
 function jefeInmediatoOptions(selectedId, excludeId) {
   return Store.getEmployees()
     .filter(e => e.id !== excludeId)
-    .map(e => `<option value="${e.id}" ${e.id === selectedId ? 'selected' : ''}>${escapeHtml(fullName(e))}</option>`)
+    .map(e => { const n = nivelDe(e); return `<option value="${e.id}" ${e.id === selectedId ? 'selected' : ''}>${escapeHtml(fullName(e))}${puestoDe(e) ? ' — ' + escapeHtml(puestoDe(e)) : ''}${n ? ' (N' + n + ')' : ''}</option>`; })
     .join('');
 }
 
@@ -115,7 +138,7 @@ function getFiltered() {
     if (state.departmentId && e.departmentId !== state.departmentId) return false;
     if (state.estado && e.estado !== state.estado) return false;
     if (term) {
-      const cargo = catalogName('cargos', e.cargoId);
+      const cargo = `${catalogName('cargos', e.cargoId)} ${puestoDe(e)}`;
       const haystack = `${fullName(e)} ${e.numeroDocumento || ''} ${employeeEmail(e)} ${cargo}`.toLowerCase();
       if (!haystack.includes(term)) return false;
     }
@@ -226,7 +249,7 @@ function rowHtml(emp) {
           </div>
         </div>
       </td>
-      <td>${escapeHtml(catalogName('cargos', emp.cargoId))}</td>
+      <td>${escapeHtml(puestoDe(emp) || '—')}${nivelDe(emp) ? ` <span class="tag">N${nivelDe(emp)}</span>` : ''}</td>
       <td>${escapeHtml(catalogName('areasTrabajo', emp.areaTrabajoId))}</td>
       <td>${dep ? `<span class="tag">${escapeHtml(dep.nombre)}</span>` : '—'}</td>
       <td>${accountRole(emp) ? `<span class="tag">${escapeHtml(accountRole(emp))}</span>` : '—'}</td>
@@ -380,7 +403,14 @@ async function openEmployeeForm(id) {
           </select>
         `)}
         ${catalogFieldHtml({ label: 'Área de trabajo', name: 'areaTrabajoId', catalogKey: 'areasTrabajo', selectedId: editing?.areaTrabajoId })}
-        ${catalogFieldHtml({ label: 'Cargo', name: 'cargoId', catalogKey: 'cargos', selectedId: editing?.cargoId })}
+        ${catalogFieldHtml({ label: 'Cargo principal (nivel)', name: 'cargoId', catalogKey: 'cargos', selectedId: editing?.cargoId, addable: false })}
+        ${inlineField('Sub-cargo (puesto)', false, `
+          <select name="subcargoId" id="emp-subcargo">
+            <option value="">Sin sub-cargo</option>
+            ${subcargoOptions(editing?.areaTrabajoId, editing?.cargoId, editing?.subcargoId)}
+          </select>
+          <small style="display:block;color:var(--text-muted);margin-top:4px">Se filtra por el área y el cargo principal. Los sub-cargos se crean en Configuración.</small>
+        `)}
         ${inlineField('Jefe inmediato', false, `
           <select name="jefeInmediatoId">
             <option value="">Sin jefe asignado</option>
@@ -595,6 +625,21 @@ function wireEmployeeForm(modal, editing) {
     select.innerHTML = `<option value="">Seleccionar...</option>${catalogOptions(catalogKey, keepSelected, parentId)}`;
   }
 
+  const areaSel = form.querySelector('select[name="areaTrabajoId"]');
+  const cargoSel = form.querySelector('select[name="cargoId"]');
+  const subSel = form.querySelector('select[name="subcargoId"]');
+  const refrescarSub = () => {
+    const actual = subSel.value;
+    subSel.innerHTML = `<option value="">Sin sub-cargo</option>${subcargoOptions(areaSel.value, cargoSel.value, actual)}`;
+    if ([...subSel.options].some(o => o.value === actual)) subSel.value = actual;
+  };
+  areaSel?.addEventListener('change', refrescarSub);
+  cargoSel?.addEventListener('change', refrescarSub);
+  subSel?.addEventListener('change', () => {
+    const s = Store.getCatalogItem('subcargos', subSel.value);
+    if (s && s.parentId && cargoSel.value !== s.parentId) { cargoSel.value = s.parentId; refrescarSub(); subSel.value = s.id; }
+  });
+
   depGeoSelect.addEventListener('change', (e) => {
     repopulate(provSelect, 'provincias', e.target.value, '');
     repopulate(distSelect, 'distritos', '', '');
@@ -740,7 +785,7 @@ function buildDetailBody(emp) {
       ${avatarHtml(emp, 52)}
       <div>
         <div style="font-size:16px;font-weight:700;">${escapeHtml(fullName(emp))}</div>
-        <div class="cell-sub">${escapeHtml(catalogName('cargos', emp.cargoId))} · <span class="badge ${statusMeta.cls}">${statusMeta.label}</span></div>
+        <div class="cell-sub">${escapeHtml(puestoDe(emp) || '—')} · <span class="badge ${statusMeta.cls}">${statusMeta.label}</span></div>
       </div>
     </div>
     ${locked ? `
@@ -766,6 +811,8 @@ function buildDetailBody(emp) {
       <div class="detail-item"><dt>Antecedentes</dt><dd>${isMasked(emp.cuentaAntecedentes) ? MASK : (emp.cuentaAntecedentes === 'Si' ? maskedCatalog('tiposAntecedente', emp.tipoAntecedenteId) : 'No')}</dd></div>
       <div class="detail-item"><dt>Departamento</dt><dd>${dep ? escapeHtml(dep.nombre) : '—'}</dd></div>
       <div class="detail-item"><dt>Área de trabajo</dt><dd>${maskedCatalog('areasTrabajo', emp.areaTrabajoId)}</dd></div>
+      <div class="detail-item"><dt>Cargo principal</dt><dd>${escapeHtml(catalogName('cargos', emp.cargoId) || '—')}${nivelDe(emp) ? ` <span class="tag">Nivel ${nivelDe(emp)}</span>` : ''}</dd></div>
+      <div class="detail-item"><dt>Sub-cargo (puesto)</dt><dd>${emp.subcargoId ? escapeHtml(catalogName('subcargos', emp.subcargoId)) : '—'}</dd></div>
       <div class="detail-item"><dt>Jefe inmediato</dt><dd>${jefe ? escapeHtml(fullName(jefe)) : '—'}</dd></div>
       <div class="detail-item"><dt>Fecha de ingreso</dt><dd>${formatDate(emp.fechaIngreso)}</dd></div>
       <div class="detail-item"><dt>Usuario de acceso</dt><dd>${escapeHtml(emp.usuario || 'Sin cuenta creada')}</dd></div>

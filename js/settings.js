@@ -9,11 +9,33 @@ const CATALOG_GROUPS = [
   { key: 'dominiosEmail', label: 'Dominios de correo' },
   { key: 'tiposAntecedente', label: 'Tipos de antecedente' },
   { key: 'areasTrabajo', label: 'Áreas de trabajo' },
-  { key: 'cargos', label: 'Cargos' },
+  { key: 'cargos', label: 'Cargos principales (nivel jerárquico)', tipo: 'cargos' },
+  { key: 'subcargos', label: 'Sub-cargos', tipo: 'subcargos', parentKey: 'cargos' },
   { key: 'departamentosGeo', label: 'Departamentos (ubicación)' },
   { key: 'provincias', label: 'Provincias', parentKey: 'departamentosGeo' },
   { key: 'distritos', label: 'Distritos', parentKey: 'provincias' },
 ];
+
+// Áreas: nombre interno -> sigla oficial (igual que en la API)
+const CANON = { ORH: 'RRHH', ODN: 'COMERCIAL', OCOS: 'SOPORTE', OTI: 'TI' };
+const ETIQUETA = { RRHH: 'ORH', COMERCIAL: 'ODN', SOPORTE: 'OCOS', TI: 'OTI' };
+const canon = n => { const a = String(n || '').trim().toUpperCase(); return CANON[a] || a; };
+const etiquetaArea = clave => ETIQUETA[clave] || clave;
+const NIVELES = ['Director', 'Gerente', 'Jefe de Oficina', 'Coordinador', 'Supervisor / Líder', 'Especialista', 'Analista', 'Asistente / Técnico', 'Practicante'];
+
+// Controles extra al agregar: nivel para cargos; cargo principal y área para sub-cargos
+function extraAddHtml(g) {
+  if (g.tipo === 'cargos') {
+    return `<select id="settings-add-nivel-${g.key}" aria-label="Nivel jerárquico"><option value="">Nivel…</option>${NIVELES.map((n, i) => `<option value="${i + 1}">N${i + 1} · ${escapeHtml(n)}</option>`).join('')}</select>`;
+  }
+  if (g.tipo === 'subcargos') {
+    const cargos = [...Store.getCatalog('cargos')].sort((a, b) => (a.nivel || 99) - (b.nivel || 99));
+    const areas = Store.getCatalog('areasTrabajo');
+    return `<select id="settings-add-padre-${g.key}" aria-label="Cargo principal"><option value="">Cargo principal…</option>${cargos.map(c => `<option value="${c.id}">${c.nivel ? 'N' + c.nivel + ' · ' : ''}${escapeHtml(c.nombre)}</option>`).join('')}</select>
+      <select id="settings-add-area-${g.key}" aria-label="Área"><option value="">Área…</option>${areas.map(a => `<option value="${escapeHtml(a.nombre)}">${escapeHtml(a.nombre)}</option>`).join('')}</select>`;
+  }
+  return '';
+}
 
 export function renderSettings() {
   const container = document.getElementById('view-settings');
@@ -27,7 +49,8 @@ export function renderSettings() {
             <span class="tag" id="settings-count-${g.key}">0</span>
           </div>
           <div class="settings-card__list" id="settings-list-${g.key}"></div>
-          <div class="settings-card__add">
+          <div class="settings-card__add" ${g.tipo ? 'style="flex-wrap:wrap"' : ''}>
+            ${extraAddHtml(g)}
             <input type="text" id="settings-add-input-${g.key}" placeholder="Agregar nuevo...">
             <button type="button" class="btn btn-secondary btn-sm" data-add="${g.key}">${icon('plus')}</button>
           </div>
@@ -68,12 +91,30 @@ function renderGroup(group) {
     return;
   }
 
-  list.innerHTML = items.map(item => {
+  // Cargos por nivel; sub-cargos agrupados por área y nivel
+  const ordenados = [...items].sort((a, b) => group.tipo === 'subcargos'
+    ? (etiquetaArea(canon(a.area)).localeCompare(etiquetaArea(canon(b.area))) || (a.nivel || 99) - (b.nivel || 99) || a.nombre.localeCompare(b.nombre))
+    : group.tipo === 'cargos' ? (a.nivel || 99) - (b.nivel || 99) : 0);
+  let areaPrev = null;
+  list.innerHTML = ordenados.map(item => {
     const parent = parentName(group, item);
+    let titulo = '';
+    if (group.tipo === 'subcargos') {
+      const ar = etiquetaArea(canon(item.area)) || 'Sin área';
+      if (ar !== areaPrev) { titulo = `<div class="settings-item__parent" style="font-weight:700;margin:10px 0 2px">${escapeHtml(ar)}</div>`; areaPrev = ar; }
+    }
+    const nivel = item.nivel ? `<span class="tag" title="Nivel jerárquico">N${item.nivel}</span>` : '';
+    return titulo + renderItem(item, group.tipo === 'subcargos' ? '' : parent, nivel);
+  }).join('');
+  bindItems(group, list);
+}
+
+function renderItem(item, parent, nivel) {
+  {
     return `
       <div class="settings-item" data-id="${item.id}">
         <div class="settings-item__view">
-          <span class="settings-item__name">${escapeHtml(item.nombre)}</span>
+          ${nivel}<span class="settings-item__name">${escapeHtml(item.nombre)}</span>
           ${parent ? `<span class="settings-item__parent">bajo ${escapeHtml(parent)}</span>` : ''}
           <div class="settings-item__actions">
             <button type="button" class="btn btn-ghost btn-sm" data-action="edit" title="Editar">${icon('edit')}</button>
@@ -87,8 +128,10 @@ function renderGroup(group) {
         </div>
       </div>
     `;
-  }).join('');
+  }
+}
 
+function bindItems(group, list) {
   list.querySelectorAll('.settings-item').forEach(row => {
     const id = row.dataset.id;
     const viewBox = row.querySelector('.settings-item__view');
@@ -113,10 +156,21 @@ async function handleAdd(key) {
   const input = document.getElementById(`settings-add-input-${key}`);
   const value = input.value.trim();
   if (!value) return;
+  let parentId = null; const extra = {};
+  if (group.tipo === 'cargos') {
+    extra.nivel = document.getElementById(`settings-add-nivel-${key}`).value;
+    if (!extra.nivel) { toast('Elige el nivel jerárquico del cargo.', 'error'); return; }
+  }
+  if (group.tipo === 'subcargos') {
+    parentId = document.getElementById(`settings-add-padre-${key}`).value;
+    extra.area = document.getElementById(`settings-add-area-${key}`).value;
+    if (!parentId || !extra.area) { toast('Elige el cargo principal y el área del sub-cargo.', 'error'); return; }
+  }
   try {
-    await Store.addCatalogItem(key, value, null);
+    await Store.addCatalogItem(key, value, parentId, extra);
     input.value = '';
     renderGroup(group);
+    if (group.tipo === 'cargos') renderGroup(CATALOG_GROUPS.find(g => g.tipo === 'subcargos'));
     toast('Valor agregado.', 'success');
   } catch (err) {
     toast(err.message || 'No se pudo agregar el valor.', 'error');

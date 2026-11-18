@@ -1,6 +1,7 @@
 import { Store } from './storage.js';
 import { renderCalendario } from './calendario.js';
 import { renderAuditoria } from './auditoria.js';
+import { renderJerarquia } from './jerarquia.js';
 import { renderDashboard } from './dashboard.js';
 import { renderEmployees } from './employees.js';
 import { renderContracts } from './contracts.js';
@@ -18,6 +19,7 @@ import { contractStatus } from './utils.js';
 const VIEWS = {
   dashboard: { render: renderDashboard, title: 'Dashboard', subtitle: 'Resumen general de la Oficina de Recursos Humanos' },
   calendario: { render: renderCalendario, title: 'Calendario', subtitle: 'Reuniones de ORH e interconexión con otras áreas' },
+  jerarquia: { render: renderJerarquia, title: 'Mapa jerárquico', subtitle: 'Niveles, cargos, funciones y comunicación entre las áreas de QUBIRA' },
   employees: { render: renderEmployees, title: 'Empleados', subtitle: 'Gestión de datos del personal' },
   contracts: { render: renderContracts, title: 'Contratos', subtitle: 'Administración de contratos laborales' },
   documents: { render: renderDocuments, title: 'Documentos', subtitle: 'Archivos y documentación del personal' },
@@ -36,6 +38,8 @@ const QUALIFYING_AUDIT_CARGOS = ['SUPERVISOR', 'COORDINADOR', 'GERENTE'];
 function canViewAudit(user) {
   if (!user) return false;
   if ((user.nivel_acceso || 0) >= 100) return true;
+  // Por nivel jerárquico: N1 a N5 (Supervisor o superior)
+  if (user.nivel_cargo) return user.nivel_cargo <= 5;
   return QUALIFYING_AUDIT_CARGOS.includes(String(user.cargo || '').toUpperCase());
 }
 
