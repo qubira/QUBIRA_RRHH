@@ -116,12 +116,20 @@ function puestoDe(emp) {
   const n = catalogName('cargos', emp.cargoId);
   return n === '—' ? '' : n;
 }
+// Todos los puestos del área, agrupados por nivel (elegir uno fija su cargo principal)
 function subcargoOptions(areaId, cargoId, selectedId) {
   const area = areaId ? canonArea(catalogName('areasTrabajo', areaId)) : '';
   const lista = Store.getCatalog('subcargos')
-    .filter(s => (!area || canonArea(s.area) === area) && (!cargoId || s.parentId === cargoId || s.id === selectedId))
+    .filter(s => !area || canonArea(s.area) === area || s.id === selectedId)
     .sort((a, b) => (a.nivel || 99) - (b.nivel || 99) || a.nombre.localeCompare(b.nombre));
-  return lista.map(s => `<option value="${s.id}" ${s.id === selectedId ? 'selected' : ''}>N${s.nivel || '?'} · ${escapeHtml(s.nombre)}</option>`).join('');
+  if (!lista.length) return '<option value="" disabled>Esta área aún no tiene sub-cargos (créalos en Configuración)</option>';
+  const grupos = {};
+  lista.forEach(s => (grupos[s.parentId || ''] ||= []).push(s));
+  return Object.entries(grupos).map(([padreId, subs]) => {
+    const padre = Store.getCatalogItem('cargos', padreId);
+    const etiqueta = `N${subs[0].nivel || '?'} · ${padre ? padre.nombre : 'Sin cargo principal'}`;
+    return `<optgroup label="${escapeHtml(etiqueta)}">${subs.map(s => `<option value="${s.id}" ${s.id === selectedId ? 'selected' : ''}>${escapeHtml(s.nombre)}</option>`).join('')}</optgroup>`;
+  }).join('');
 }
 
 function jefeInmediatoOptions(selectedId, excludeId) {
@@ -409,7 +417,7 @@ async function openEmployeeForm(id) {
             <option value="">Sin sub-cargo</option>
             ${subcargoOptions(editing?.areaTrabajoId, editing?.cargoId, editing?.subcargoId)}
           </select>
-          <small style="display:block;color:var(--text-muted);margin-top:4px">Se filtra por el área y el cargo principal. Los sub-cargos se crean en Configuración.</small>
+          <small style="display:block;color:var(--text-muted);margin-top:4px">Muestra los puestos del área elegida. Al elegir uno, el cargo principal se ajusta solo. Los sub-cargos se crean en Configuración.</small>
         `)}
         ${inlineField('Jefe inmediato', false, `
           <select name="jefeInmediatoId">
