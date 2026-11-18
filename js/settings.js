@@ -40,7 +40,7 @@ function extraAddHtml(g) {
 export function renderSettings() {
   const container = document.getElementById('view-settings');
   container.innerHTML = `
-    <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 16px;">Acá se gestionan todas las listas de opciones que aparecen en los formularios (los botones "+"). Podés renombrar o eliminar cualquier valor.</p>
+    <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 16px;">Aquí se gestionan todas las listas de opciones que aparecen en los formularios (los botones "+"). Puedes renombrar o eliminar cualquier valor.</p>
     <div class="settings-grid">
       ${CATALOG_GROUPS.map(g => `
         <div class="settings-card" id="settings-card-${g.key}">

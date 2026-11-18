@@ -34,8 +34,9 @@ function departmentOptions(selectedId) {
 function catalogOptions(catalogKey, selectedId, parentId) {
   let items = Store.getCatalog(catalogKey);
   if (parentId !== undefined) items = items.filter(i => i.parentId === (parentId || '__sin_padre__'));
+  if (catalogKey === 'cargos') items = [...items].sort((a, b) => (a.nivel || 99) - (b.nivel || 99));
   return items.map(i =>
-    `<option value="${i.id}" ${i.id === selectedId ? 'selected' : ''}>${escapeHtml(i.nombre)}</option>`
+    `<option value="${i.id}" ${i.id === selectedId ? 'selected' : ''}>${i.nivel ? 'N' + i.nivel + ' · ' : ''}${escapeHtml(i.nombre)}</option>`
   ).join('');
 }
 
@@ -130,6 +131,31 @@ function subcargoOptions(areaId, cargoId, selectedId) {
     const etiqueta = `N${subs[0].nivel || '?'} · ${padre ? padre.nombre : 'Sin cargo principal'}`;
     return `<optgroup label="${escapeHtml(etiqueta)}">${subs.map(s => `<option value="${s.id}" ${s.id === selectedId ? 'selected' : ''}>${escapeHtml(s.nombre)}</option>`).join('')}</optgroup>`;
   }).join('');
+}
+
+/* Revisa la ficha contra la jerarquía antes de guardar:
+   - bloquea si el puesto no es del área o si el jefe tiene un nivel inferior;
+   - pide confirmación si el jefe es del mismo nivel o si el área no usa ese nivel. */
+function revisarJerarquia(data, empleadoId) {
+  const cargo = Store.getCatalogItem('cargos', data.cargoId);
+  const sub = data.subcargoId ? Store.getCatalogItem('subcargos', data.subcargoId) : null;
+  const areaNombre = data.areaTrabajoId ? catalogName('areasTrabajo', data.areaTrabajoId) : '';
+  const area = canonArea(areaNombre);
+  if (sub && area && canonArea(sub.area) !== area) return { bloqueo: `El puesto «${sub.nombre}» no pertenece al área ${areaNombre}.` };
+  const nivel = (cargo && cargo.nivel) || (sub && sub.nivel) || null;
+  const avisos = [];
+  if (data.jefeInmediatoId && nivel) {
+    if (data.jefeInmediatoId === empleadoId) return { bloqueo: 'Un empleado no puede ser su propio jefe inmediato.' };
+    const jefe = Store.getEmployee(data.jefeInmediatoId);
+    const nj = jefe ? nivelDe(jefe) : null;
+    if (nj && nj > nivel) return { bloqueo: `El jefe inmediato es de nivel N${nj} y el empleado de N${nivel}. El jefe debe tener un nivel más alto (un número menor).` };
+    if (nj && nj === nivel) avisos.push(`El jefe inmediato tiene el mismo nivel (N${nivel}) que el empleado; la regla pide que el jefe sea de un nivel más alto.`);
+  }
+  if (area && nivel && !sub) {
+    const nivelesArea = new Set(Store.getCatalog('subcargos').filter(s => canonArea(s.area) === area).map(s => s.nivel));
+    if (nivelesArea.size && !nivelesArea.has(nivel)) avisos.push(`El área ${areaNombre} no tiene puestos de nivel N${nivel} (${cargo ? cargo.nombre : ''}). Revisa el área o el cargo principal, o elige un sub-cargo.`);
+  }
+  return avisos.length ? { confirmar: avisos.join(' ') + ' ¿Guardar de todos modos?' } : {};
 }
 
 function jefeInmediatoOptions(selectedId, excludeId) {
@@ -331,7 +357,7 @@ async function openEmployeeForm(id) {
         ${editing && !Store.isPrivileged() ? `
           <div class="unlock-bar" id="unlock-bar">
             ${icon('lock')}
-            <span>Los datos sensibles están protegidos. Podés editar los campos generales sin restricción.</span>
+            <span>Los datos sensibles están protegidos. Puedes editar los campos generales sin restricción.</span>
             <input type="password" id="unlock-password" placeholder="Tu contraseña">
             <button type="button" class="btn btn-primary btn-sm" id="unlock-btn">Desbloquear para editar</button>
           </div>
@@ -404,7 +430,7 @@ async function openEmployeeForm(id) {
         ${catalogFieldHtml({ label: 'Tipo de antecedente', name: 'tipoAntecedenteId', catalogKey: 'tiposAntecedente', selectedId: editing?.tipoAntecedenteId, required: hayAntecedentes })}
 
         <div class="subsection-title">${icon('briefcase')} Datos laborales</div>
-        ${inlineField('Departamento (organización)', true, `
+        ${inlineField('Departamento (sede)', true, `
           <select name="departmentId" required>
             <option value="">Seleccionar...</option>
             ${departmentOptions(editing?.departmentId)}
@@ -719,6 +745,16 @@ function wireEmployeeForm(modal, editing) {
       }
     }
 
+    // Jerarquía: se revisa antes de bloquear el botón, para poder corregir y reintentar
+    const revision = revisarJerarquia(Object.fromEntries(new FormData(form).entries()), editing?.id);
+    if (revision.bloqueo) { toast(escapeHtml(revision.bloqueo), 'error'); return; }
+    // Aviso sin cerrar el formulario: un segundo clic en Guardar confirma
+    if (revision.confirmar && form.dataset.avisoJerarquia !== revision.confirmar) {
+      form.dataset.avisoJerarquia = revision.confirmar;
+      toast(escapeHtml(revision.confirmar.replace('¿Guardar de todos modos?', 'Si es correcto, pulsa Guardar otra vez.')), 'error');
+      return;
+    }
+
     const saveBtn = modal.querySelector('#save-employee');
     saveBtn.disabled = true;
     if (form.pendingFotoUpload) {
@@ -734,6 +770,7 @@ function wireEmployeeForm(modal, editing) {
     if (form.unlockedPassword) data.password = form.unlockedPassword;
     const sessionUser = JSON.parse(localStorage.getItem('rrhh_user') || 'null');
     const meta = { usuario: sessionUser ? `${sessionUser.nombre} ${sessionUser.apellidos || ''}`.trim() : 'Administrador', ip };
+
 
     try {
       let created = null;

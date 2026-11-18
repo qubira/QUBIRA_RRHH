@@ -24,7 +24,7 @@ const VIEWS = {
   contracts: { render: renderContracts, title: 'Contratos', subtitle: 'Administración de contratos laborales' },
   documents: { render: renderDocuments, title: 'Documentos', subtitle: 'Archivos y documentación del personal' },
   constancias: { render: renderConstancias, title: 'Constancias de Trabajo', subtitle: 'Emisión y verificación de constancias laborales' },
-  departments: { render: renderDepartments, title: 'Departamentos', subtitle: 'Áreas y estructura organizacional' },
+  departments: { render: renderDepartments, title: 'Departamentos', subtitle: 'Sedes de la organización (distintas de las áreas de trabajo)' },
   recruitment: { render: renderRecruitment, title: 'Reclutamiento y Selección', subtitle: 'Ofertas de empleo y seguimiento de candidatos' },
   payroll: { render: renderPayroll, title: 'Administración y Nómina', subtitle: 'Liquidaciones, vacaciones y licencias' },
   development: { render: renderDevelopment, title: 'Capacitación y Desarrollo', subtitle: 'Formación del personal y evaluaciones de desempeño' },
