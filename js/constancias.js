@@ -138,7 +138,7 @@ function renderTable() {
 function rowHtml(c) {
   return `
     <tr>
-      <td><span class="tag">${escapeHtml(c.numero)}</span></td>
+      <td><span class="tag">${escapeHtml(c.numero)}</span>${c.numeroAnterior ? `<div style="font-size:11px;color:var(--text-muted)">antes ${escapeHtml(c.numeroAnterior)}</div>` : ''}</td>
       <td>
         <div class="person-cell">
           <div class="avatar">${initials(...String(c.nombreCompleto || '?').split(' '))}</div>
@@ -146,12 +146,14 @@ function rowHtml(c) {
         </div>
       </td>
       <td>${escapeHtml(c.cargo || '—')}</td>
-      <td>${formatDate(c.fechaEmision)}</td>
+      <td>${formatDate(c.fechaEmision)}${c.emisorNombre ? `<div style="font-size:11px;color:var(--text-muted)">Emitió: ${escapeHtml(c.emisorNombre)}</div>` : ''}</td>
       <td>
         <div class="table-actions">
-          <button class="btn btn-ghost btn-sm" data-action="edit" data-id="${c.id}" title="Editar">${icon('edit')}</button>
+          ${c.codificada ? '' : `<button class="btn btn-ghost btn-sm" data-action="edit" data-id="${c.id}" title="Editar">${icon('edit')}</button>`}
           <button class="btn btn-ghost btn-sm" data-action="download" data-id="${c.id}" data-numero="${escapeHtml(c.numero)}" title="Descargar PDF">${icon('file-text')} PDF</button>
-          <button class="btn btn-ghost btn-sm" data-action="delete" data-id="${c.id}" data-numero="${escapeHtml(c.numero)}" title="Eliminar">${icon('trash')}</button>
+          ${c.codificada
+            ? `<span title="Una constancia emitida no se edita ni se elimina: se anula y se reemplaza desde el Registro de documentos (ADG)" style="font-size:11px;color:var(--text-muted);cursor:help">🔒 emitida</span>`
+            : `<button class="btn btn-ghost btn-sm" data-action="delete" data-id="${c.id}" data-numero="${escapeHtml(c.numero)}" title="Eliminar">${icon('trash')}</button>`}
         </div>
       </td>
     </tr>
