@@ -37,7 +37,11 @@ function extraAddHtml(g) {
     const cargos = [...Store.getCatalog('cargos')].sort((a, b) => (a.nivel || 99) - (b.nivel || 99));
     const areas = Store.getCatalog('areasTrabajo');
     return `<select id="settings-add-padre-${g.key}" aria-label="Cargo principal"><option value="">Cargo principal…</option>${cargos.map(c => `<option value="${c.id}">${c.nivel ? 'N' + c.nivel + ' · ' : ''}${escapeHtml(c.nombre)}</option>`).join('')}</select>
-      <select id="settings-add-area-${g.key}" aria-label="Área"><option value="">Área…</option>${areas.map(a => `<option value="${escapeHtml(a.nombre)}">${escapeHtml(a.nombre)}</option>`).join('')}</select>`;
+      <select id="settings-add-area-${g.key}" aria-label="Área"><option value="">Área…</option>${areas.map(a => `<option value="${escapeHtml(a.nombre)}">${escapeHtml(a.nombre)}</option>`).join('')}</select>
+      <input type="text" id="settings-add-subarea-${g.key}" placeholder="Sub-área (opcional, ej. Calidad (QA))" style="flex:1 1 100%">
+      <input type="text" id="settings-add-jefe-${g.key}" list="settings-jefes-${g.key}" placeholder="Jefe inmediato: sub-cargo del que depende (opcional)" style="flex:1 1 100%">
+      <datalist id="settings-jefes-${g.key}">${[...new Set(Store.getCatalog('subcargos').map(s => s.nombre))].sort().map(n => `<option value="${escapeHtml(n)}"></option>`).join('')}</datalist>
+      <input type="text" id="settings-add-funcion-${g.key}" placeholder="Función del puesto en una frase (opcional)" style="flex:1 1 100%">`;
   }
   return '';
 }
@@ -211,11 +215,13 @@ async function handleAdd(key) {
     parentId = document.getElementById(`settings-add-padre-${key}`).value;
     extra.area = document.getElementById(`settings-add-area-${key}`).value;
     if (!parentId || !extra.area) { toast('Elige el cargo principal y el área del sub-cargo.', 'error'); return; }
+    ['subarea', 'jefe', 'funcion'].forEach(k => { extra[k] = document.getElementById(`settings-add-${k}-${key}`).value.trim(); });
   }
   try {
     await Store.addCatalogItem(key, group.tipo === 'areas' ? extra.sigla : value, parentId, extra);
     input.value = '';
     if (group.tipo === 'areas') ['nombrecompleto', 'alias'].forEach(k => { document.getElementById(`settings-add-${k}-${key}`).value = ''; });
+    if (group.tipo === 'subcargos') ['subarea', 'jefe', 'funcion'].forEach(k => { document.getElementById(`settings-add-${k}-${key}`).value = ''; });
     renderGroup(group);
     if (group.tipo === 'cargos') renderGroup(CATALOG_GROUPS.find(g => g.tipo === 'subcargos'));
     toast('Valor agregado.', 'success');

@@ -130,13 +130,15 @@ function subcargoOptions(areaId, cargoId, selectedId) {
   return Object.entries(grupos).map(([padreId, subs]) => {
     const padre = Store.getCatalogItem('cargos', padreId);
     const etiqueta = `N${subs[0].nivel || '?'} · ${padre ? padre.nombre : 'Sin cargo principal'}`;
-    return `<optgroup label="${escapeHtml(etiqueta)}">${subs.map(s => `<option value="${s.id}" ${s.id === selectedId ? 'selected' : ''}>${escapeHtml(s.nombre)}</option>`).join('')}</optgroup>`;
+    const titulo = s => [s.funcion, s.jefe ? `Jefe inmediato: ${s.jefe}` : ''].filter(Boolean).join(' · ');
+    return `<optgroup label="${escapeHtml(etiqueta)}">${subs.map(s => `<option value="${s.id}" ${s.id === selectedId ? 'selected' : ''}${titulo(s) ? ` title="${escapeHtml(titulo(s))}"` : ''}>${escapeHtml(s.nombre)}${s.subarea ? ` · ${escapeHtml(s.subarea)}` : ''}</option>`).join('')}</optgroup>`;
   }).join('');
 }
 
 /* Revisa la ficha contra la jerarquía antes de guardar:
-   - bloquea si el puesto no es del área o si el jefe tiene un nivel inferior;
-   - pide confirmación si el jefe es del mismo nivel o si el área no usa ese nivel. */
+   - bloquea si el puesto no es del área, si el jefe tiene un nivel inferior o si tiene el
+     mismo nivel (salvo en N1 y N2, donde la jerarquía la da el cargo);
+   - pide confirmación si el área no usa ese nivel. */
 function revisarJerarquia(data, empleadoId) {
   const cargo = Store.getCatalogItem('cargos', data.cargoId);
   const sub = data.subcargoId ? Store.getCatalogItem('subcargos', data.subcargoId) : null;
@@ -150,7 +152,8 @@ function revisarJerarquia(data, empleadoId) {
     const jefe = Store.getEmployee(data.jefeInmediatoId);
     const nj = jefe ? nivelDe(jefe) : null;
     if (nj && nj > nivel) return { bloqueo: `El jefe inmediato es de nivel N${nj} y el empleado de N${nivel}. El jefe debe tener un nivel más alto (un número menor).` };
-    if (nj && nj === nivel) avisos.push(`El jefe inmediato tiene el mismo nivel (N${nivel}) que el empleado; la regla pide que el jefe sea de un nivel más alto.`);
+    // Excepción: en N1 (ADG) y N2 (GG) el jefe puede tener el mismo nivel (la jerarquía la da el cargo)
+    if (nj && nj === nivel && nivel > 2) return { bloqueo: `El jefe inmediato tiene el mismo nivel (N${nivel}) que el empleado. Solo en N1 (ADG) y N2 (GG) el jefe puede ser del mismo nivel; elige a alguien de un nivel más alto.` };
   }
   if (area && nivel && !sub) {
     const nivelesArea = new Set(Store.getCatalog('subcargos').filter(s => canonArea(s.area) === area).map(s => s.nivel));
