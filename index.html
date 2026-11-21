@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="css/style.css?v=3">
   <script src="https://api-qubira.onrender.com/api/public/areas.js" defer></script>
   <script src="https://api-qubira.onrender.com/api/public/jerarquia.js?v=20261120" defer></script>
+  <link rel="stylesheet" href="./sidebar.css?v=1">
 </head>
 <body>
 
@@ -51,16 +52,16 @@
 <div class="app-shell">
   <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar__brand">
+  <aside class="sidebar" id="sidebar" data-qb-sidebar="RRHH">
+    <div class="sidebar__brand" data-qb-brand>
       <div class="logo-mark"><img src="https://raw.githubusercontent.com/qubira/IMAGENES/main/logo2.png" alt="Qubira"></div>
-      <div>
-        Qubira ORH
-        <small>Panel de administración</small>
+      <div data-qb-brand-text>
+        <div data-qb-title>QUBIRA</div>
+        <div data-qb-subtitle>ORH &middot; Recursos Humanos</div>
       </div>
     </div>
 
-    <nav>
+    <nav data-qb-nav>
       <div class="nav-section-label">General</div>
       <button class="nav-item" data-view="dashboard"><svg class="icon"><use href="#icon-grid"></use></svg> Dashboard</button>
       <button class="nav-item" data-view="calendario"><svg class="icon"><use href="#icon-calendar"></use></svg> Calendario</button>
@@ -100,7 +101,7 @@
       <button class="nav-item" data-view="settings"><svg class="icon"><use href="#icon-settings"></use></svg> Configuración</button>
     </nav>
 
-    <div class="sidebar__footer">
+    <div class="sidebar__footer" data-pie-modulo>
       <div class="sidebar__footer-user">
         <div class="avatar" id="session-avatar">AD</div>
         <div>
@@ -109,11 +110,11 @@
         </div>
       </div>
       <div style="display:flex;gap:8px">
-        <button id="switch-module-btn" class="sidebar__logout-btn sidebar__switch-btn" title="Cambiar de módulo">
+        <button id="switch-module-btn" data-pie-cambiar class="sidebar__logout-btn sidebar__switch-btn" title="Cambiar de módulo">
           <svg class="icon" style="width:15px;height:15px"><use href="#icon-grid"></use></svg>
           Módulos
         </button>
-        <button id="logout-btn" class="sidebar__logout-btn" title="Cerrar sesión">
+        <button id="logout-btn" data-pie-salir class="sidebar__logout-btn" title="Cerrar sesión">
           <svg class="icon" style="width:15px;height:15px"><use href="#icon-log-out"></use></svg>
           Cerrar sesión
         </button>
@@ -166,5 +167,7 @@
 <!-- Estado del servidor QUBIRA (tiempo encendido y horas de Render) -->
 <script src="https://api-qubira.onrender.com/api/public/estado.js" defer></script>
 <script src="https://api-qubira.onrender.com/api/public/notificaciones.js?v=20261121" data-token="rrhh_token" defer></script>
+
+<script src="./pie-modulo.js?v=1" data-token="rrhh_token" defer></script>
 </body>
 </html>
