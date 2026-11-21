@@ -6,6 +6,28 @@
   const local = ['localhost', '127.0.0.1'].includes(location.hostname);
   const authUrl = (local ? 'http://localhost:4000' : 'https://api-qubira.onrender.com') + '/api/auth/me';
 
+  const toggle = document.querySelector('[data-qb-toggle]');
+  if (toggle) {
+    const sidebar = toggle.closest('[data-qb-sidebar]');
+    const key = 'qb-menu-reducido-' + sidebar.dataset.qbSidebar;
+    function contraer(reducido) {
+      document.body.classList.toggle('sidebar-colapsada', reducido);
+      toggle.setAttribute('aria-expanded', String(!reducido));
+      const label = reducido ? 'Expandir menú' : 'Contraer menú';
+      toggle.setAttribute('aria-label', label);
+      toggle.title = label;
+    }
+    sidebar.querySelectorAll('[data-qb-nav] > .nav-item').forEach(item => {
+      if (!item.title) item.title = item.textContent.trim().replace(/\s+/g, ' ');
+    });
+    contraer(localStorage.getItem(key) === '1');
+    toggle.addEventListener('click', () => {
+      const reducido = toggle.getAttribute('aria-expanded') === 'true';
+      localStorage.setItem(key, reducido ? '1' : '0');
+      contraer(reducido);
+    });
+  }
+
   const css = document.createElement('style');
   css.textContent = `
     [data-pie-modulo].qb-pie {

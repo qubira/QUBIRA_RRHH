@@ -96,7 +96,7 @@
 #sidebar[data-qb-sidebar] [data-qb-nav] > .nav-item {
   box-sizing: border-box;
   display: flex;
-  width: auto;
+  width: calc(100% - 20px);
   align-items: center;
   justify-content: flex-start;
   gap: 12px;
@@ -155,6 +155,13 @@
   padding: 10px 0;
   font-size: 0;
 }
+
+body.sidebar-colapsada:has(#sidebar [data-qb-toggle]) { --sidebar-w: 76px; }
+body.sidebar-colapsada #sidebar[data-qb-sidebar] [data-qb-toggle] svg { transform: rotate(180deg); }
+body.sidebar-colapsada #sidebar[data-qb-sidebar]:has([data-qb-toggle]) [data-qb-nav] > .nav-item > span {
+  display: none;
+}
+#sidebar[data-qb-sidebar] [data-qb-nav] > .nav-item > i { font-size: 17px; }
 
 #sidebar[data-qb-sidebar="ADG"] { --qb-area: #6d28d9; }
 #sidebar[data-qb-sidebar="DST"] { --qb-area: #b91c1c; }
